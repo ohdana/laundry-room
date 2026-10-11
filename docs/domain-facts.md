@@ -15,6 +15,3 @@ Aren’t included in the bill.
 
 - Card works on other days.
 Schedule is a house rule, not a software rule.
-
-- No time restriction.
-Can use the room any time of the day.
