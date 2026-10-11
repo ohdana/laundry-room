@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/LaundryRoom.ConsoleApp/LaundryRoom.ConsoleApp.csproj" />
     <Project Path="src/LaundryRoom.Domain/LaundryRoom.Domain.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LaundryRoom.Domain.Tests/LaundryRoom.Domain.Tests.csproj" />
+    <Project Path="tests/LaundryRoom.IntegrationTests/LaundryRoom.IntegrationTests.csproj" />
   </Folder>
 </Solution>
