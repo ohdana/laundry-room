@@ -2,6 +2,9 @@ using Xunit;
 
 public class RoomTests
 {
+    private static readonly string[] _validRoomLabels = { "yellow", "Green" };
+    private static readonly string[] _validFlatLabels = { "1a", "2B" };
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -14,8 +17,7 @@ public class RoomTests
     }
 
     [Theory]
-    [InlineData("yellow")]
-    [InlineData("Green")]
+    [MemberData(nameof(GetRoomLabels))]
     public void Room_WhenCreated_HasNoPower(string label)
     {
         // Arrange
@@ -27,14 +29,12 @@ public class RoomTests
     }
 
     [Theory]
-    [InlineData("yellow", "3b")]
-    [InlineData("Green", "2A")]
+    [MemberData(nameof(GetRoomFlatCombinations))]
     public void Room_WhenAssignedCardInserted_HasPower(string label, string owner)
     {
         // Arrange
         var room = new Room(label);
-        var card = new Card(Guid.NewGuid());
-        card.Assign(Flat.From(owner));
+        var card = GetAssignedCard(owner);
 
         // Act
         room.InsertCard(card);
@@ -44,32 +44,27 @@ public class RoomTests
     }
 
     [Theory]
-    [InlineData("yellow", "3b")]
-    [InlineData("Green", "2A")]
+    [MemberData(nameof(GetRoomFlatCombinations))]
     public void Room_WhenAssignedCardInserted_ExposesOwner(string label, string owner)
     {
         // Arrange
         var room = new Room(label);
-        var card = new Card(Guid.NewGuid());
-        var flat = Flat.From(owner);
-        card.Assign(flat);
+        var card = GetAssignedCard(owner);
 
         // Act
         room.InsertCard(card);
 
         // Assert
-        Assert.Equal(flat, room.CardOwner);
+        Assert.Equal(Flat.From(owner), room.CardOwner);
     }
 
     [Theory]
-    [InlineData("yellow", "3b")]
-    [InlineData("Green", "2A")]
+    [MemberData(nameof(GetRoomFlatCombinations))]
     public void Room_WhenAssignedCardEjected_HasNoPower(string label, string owner)
     {
         // Arrange
         var room = new Room(label);
-        var card = new Card(Guid.NewGuid());
-        card.Assign(Flat.From(owner));
+        var card = GetAssignedCard(owner);
         room.InsertCard(card);
 
         // Act
@@ -80,8 +75,7 @@ public class RoomTests
     }
 
     [Theory]
-    [InlineData("yellow")]
-    [InlineData("Green")]
+    [MemberData(nameof(GetRoomLabels))]
     public void Room_WhenUnassignedCardInserted_HasNoPower(string label)
     {
         // Arrange
@@ -96,16 +90,13 @@ public class RoomTests
     }
 
     [Theory]
-    [InlineData("yellow", "2D", "3c")]
-    [InlineData("Green", "1a", "1B")]
+    [MemberData(nameof(GetRoomFlatFlatCombinations))]
     public void Room_WhenAttemptedToInsertSecondCard_Throws(string label, string ownerA, string ownerB)
     {
         // Arrange
         var room = new Room(label);
-        var cardA = new Card(Guid.NewGuid());
-        var cardB = new Card(Guid.NewGuid());
-        cardA.Assign(Flat.From(ownerA));
-        cardB.Assign(Flat.From(ownerB));
+        var cardA = GetAssignedCard(ownerA);
+        var cardB = GetAssignedCard(ownerB);
         room.InsertCard(cardA);
 
         // Act
@@ -114,8 +105,7 @@ public class RoomTests
     }
 
     [Theory]
-    [InlineData("yellow")]
-    [InlineData("Green")]
+    [MemberData(nameof(GetRoomLabels))]
     public void Room_WhenAttemptedToEjectFromEmptySlot_Throws(string label)
     {
         // Arrange
@@ -127,23 +117,62 @@ public class RoomTests
     }
 
     [Theory]
-    [InlineData("yellow", "2D", "3c")]
-    [InlineData("Green", "1a", "1B")]
+    [MemberData(nameof(GetRoomFlatFlatCombinations))]
     public void Room_WhenCardEjected_AcceptsNewCard(string label, string ownerA, string ownerB)
     {
         // Arrange
         var room = new Room(label);
-        var cardA = new Card(Guid.NewGuid());
-        var cardB = new Card(Guid.NewGuid());
-        cardA.Assign(Flat.From(ownerA));
-        cardB.Assign(Flat.From(ownerB));
+        var cardA = GetAssignedCard(ownerA);
         room.InsertCard(cardA);
         room.EjectCard();
+        
+        var cardB = GetAssignedCard(ownerB);
 
         // Act
         room.InsertCard(cardB);
 
         // Assert
         Assert.True(room.IsPowerOn);
+    }
+
+    private Card GetAssignedCard(string owner)
+    {
+        var card = new Card(Guid.NewGuid());
+        card.Assign(Flat.From(owner));
+
+        return card;
+    }
+
+    public static IEnumerable<object[]> GetRoomLabels()
+    {
+        for (int i = 0; i < _validRoomLabels.Length; i++)
+        {
+            yield return new object[] { _validRoomLabels[i] };
+        }
+    }
+
+    public static IEnumerable<object[]> GetRoomFlatCombinations()
+    {
+        for (int i = 0; i < _validRoomLabels.Length; i++)
+        {
+            for (int j = 0; j < _validFlatLabels.Length; j++)
+            {
+                yield return new object[] { _validRoomLabels[i], _validFlatLabels[j] };
+            }
+        }
+    }
+
+    public static IEnumerable<object[]> GetRoomFlatFlatCombinations()
+    {
+        for (int i = 0; i < _validRoomLabels.Length; i++)
+        {
+            for (int j = 0; j < _validFlatLabels.Length; j++)
+            {
+                for (int k = 0; k < _validFlatLabels.Length; k++)
+                {
+                    yield return new object[] { _validRoomLabels[i], _validFlatLabels[j], _validFlatLabels[k] };
+                }
+            }
+        }
     }
 }

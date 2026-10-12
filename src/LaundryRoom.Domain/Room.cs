@@ -9,7 +9,7 @@ public class Room
     public Room(string label)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Room label can't be null or empty.");
-        Label = label;
+        Label = label.ToUpperInvariant();
     }
 
     public void InsertCard(Card card)
