@@ -15,3 +15,6 @@ Assuming it’s 0.30 CHF per kWh.
 
 - Card.
 Assuming unassigned card doesn't switch the power on.
+
+- Flat.
+Flat names that differ only in case are the same flat ('3B' = '3b').
