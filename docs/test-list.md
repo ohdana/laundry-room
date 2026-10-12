@@ -5,8 +5,11 @@ Flat_WhenCreatedWithSameLabel_AreEqual
 Flat_WhenLabelsDifferCaseOnly_AreEqual
 
 Card
-Card_WhenCreated_HasNoOwner
+Card_WhenCreatedWithValidId_HasNoOwner
+Card_WhenCreatedWithInvalidId_Throws
 Card_WhenAssigned_HasOwner
+Card_WhenAssignedNull_Throws
+Card_WhenHasOwnerAndAssignedAgain_Throws
 Card_WhenReset_HasNoOwner
 
 LaundryRoom
