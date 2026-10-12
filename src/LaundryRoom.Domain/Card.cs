@@ -1,7 +1,7 @@
 public sealed class Card
 {
     public Guid Id { get; }
-    public Flat Owner { get; private set; }
+    public Flat? Owner { get; private set; }
 
     public Card(Guid id)
     {

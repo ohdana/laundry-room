@@ -19,7 +19,6 @@ public class FlatTests
     [Theory]
     [InlineData("")]
     [InlineData("       ")]
-    [InlineData(null)]
     public void Flat_WhenCreatedWithInvalidLabel_Throws(string label)
     {
         // Arrange

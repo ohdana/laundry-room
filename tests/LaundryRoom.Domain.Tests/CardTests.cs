@@ -51,7 +51,7 @@ public class CardTests
 
         // Act
         // Assert
-        Assert.Throws<ArgumentNullException>(() => card.Assign(null));
+        Assert.Throws<ArgumentNullException>(() => card.Assign(null!));
     }
 
     [Theory]
