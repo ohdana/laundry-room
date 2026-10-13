@@ -19,11 +19,9 @@ public class CardTests
     public void Card_WhenCreatedWithInvalidId_Throws()
     {
         // Arrange
-        var id = Guid.Empty;
-
         // Act
         // Assert
-        Assert.Throws<ArgumentException>(() => new Card(id));
+        Assert.Throws<ArgumentException>(() => new Card(Guid.Empty));
     }
 
     [Theory]
