@@ -13,7 +13,10 @@ public class Washer
 
         Id = id;
         _powerSource = powerSource;
+        _powerSource.PowerOff += OnPowerOff;
     }
+
+    private void OnPowerOff() => SwitchOff();
 
     public void SwitchOn()
     {

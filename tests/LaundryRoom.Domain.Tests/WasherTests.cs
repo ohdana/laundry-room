@@ -160,6 +160,25 @@ public class WasherTests
         Assert.False(washer.IsOn);
     }
 
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenRunningAndPowerLost_IsOff(WasherProgram program)
+    {
+
+        // Arrange
+        var washer = GetPoweredWasher();
+        washer.SwitchOn();
+        washer.StartProgram(program);
+
+        // Act
+        _powerSource.IsPowerOn.Returns(false);
+        _powerSource.PowerOff += Raise.Event<Action>();
+
+        // Assert
+        Assert.IsType<WasherState.Idle>(washer.State);
+        Assert.False(washer.IsOn);
+    }
+
     private Washer GetPoweredWasher()
     {
         var washer = new Washer(Guid.NewGuid(), _powerSource);
