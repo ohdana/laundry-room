@@ -232,7 +232,7 @@ public class WasherTests
         washer.StartProgram(program);
 
         // Act
-        _clock.Advance(TimeSpan.FromMinutes(program.Duration().Minutes - 1));
+        _clock.Advance(program.Duration().Subtract(TimeSpan.FromMinutes(1)));
 
         // Assert
         var running = Assert.IsType<WasherState.Running>(washer.State);
