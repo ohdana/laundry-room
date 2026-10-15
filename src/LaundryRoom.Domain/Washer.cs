@@ -5,8 +5,10 @@ public class Washer
     public WasherState State { get; private set; } = new WasherState.Idle();
 
     private readonly IPowerSource _powerSource;
+    private readonly TimeProvider _clock;
+    private ITimer? _timer;
 
-    public Washer(Guid id, IPowerSource powerSource)
+    public Washer(Guid id, IPowerSource powerSource, TimeProvider clock)
     {
         if (id == Guid.Empty) throw new ArgumentException("Washer id can't be empty.", nameof(id));
         if (powerSource == null) throw new ArgumentNullException(nameof(powerSource));
@@ -14,6 +16,8 @@ public class Washer
         Id = id;
         _powerSource = powerSource;
         _powerSource.PowerOff += OnPowerOff;
+
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     private void OnPowerOff() => SwitchOff();
@@ -37,7 +41,15 @@ public class Washer
         if (State is WasherState.Running) throw new InvalidOperationException("To start a new program, stop the current program first.");
         
         State = new WasherState.Running(program);
+        var duration = TimeSpan.FromMinutes(WasherSettings.ProgramDurationMap[program]);
+        _timer = _clock.CreateTimer(_ => OnCycleElapsed(), null, duration, Timeout.InfiniteTimeSpan);
     }
 
     private void StopProgram() => State = new WasherState.Idle();
+
+    private void OnCycleElapsed()
+    {
+        _timer?.Dispose();
+        State = new WasherState.Idle();
+    }
 }

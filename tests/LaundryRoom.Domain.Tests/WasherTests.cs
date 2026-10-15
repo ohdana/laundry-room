@@ -1,17 +1,23 @@
 using Xunit;
 using NSubstitute;
+using Microsoft.Extensions.Time.Testing;
 
 public class WasherTests
 {
     private IPowerSource _powerSource;
-    public WasherTests() => _powerSource = Substitute.For<IPowerSource>();
+    private FakeTimeProvider _clock;
+    public WasherTests()
+    {
+        _powerSource = Substitute.For<IPowerSource>();
+        _clock = new FakeTimeProvider();
+    }
 
     [Fact]
     public void Washer_WhenCreatedWithValidId_IsOff()
     {
         // Arrange
         // Act
-        var washer = new Washer(Guid.NewGuid(), _powerSource);
+        var washer = new Washer(Guid.NewGuid(), _powerSource, _clock);
 
         // Assert
         Assert.False(washer.IsOn);
@@ -22,7 +28,7 @@ public class WasherTests
     {
         // Arrange
         // Act
-        var washer = new Washer(Guid.NewGuid(), _powerSource);
+        var washer = new Washer(Guid.NewGuid(), _powerSource, _clock);
 
         // Assert
         Assert.IsType<WasherState.Idle>(washer.State);
@@ -34,7 +40,7 @@ public class WasherTests
         // Arrange
         // Act
         // Assert
-        Assert.Throws<ArgumentException>(() => new Washer(Guid.Empty, _powerSource));
+        Assert.Throws<ArgumentException>(() => new Washer(Guid.Empty, _powerSource, _clock));
     }
 
     [Fact]
@@ -43,7 +49,7 @@ public class WasherTests
         // Arrange
         // Act
         // Assert
-        Assert.Throws<ArgumentNullException>(() => new Washer(Guid.NewGuid(), null!));
+        Assert.Throws<ArgumentNullException>(() => new Washer(Guid.NewGuid(), null!, _clock));
     }
 
     [Fact]
@@ -63,7 +69,7 @@ public class WasherTests
     public void Washer_WhenNotPoweredAndSwitchOnCalled_IsOff()
     {
         // Arrange
-        var washer = new Washer(Guid.NewGuid(), _powerSource);
+        var washer = new Washer(Guid.NewGuid(), _powerSource, _clock);
 
         // Act
         washer.SwitchOn();
@@ -200,9 +206,63 @@ public class WasherTests
         Assert.False(washer.IsOn);
     }
 
+    [Theory]
+    [MemberData(nameof(GetProgramsWithDuration))]
+    public void Washer_WhenProgramDurationElapsed_IsIdle(WasherProgram program, int duration)
+    {
+        // Arrange
+        var washer = GetPoweredWasher();
+        washer.SwitchOn();
+        washer.StartProgram(program);
+
+        // Act
+        _clock.Advance(TimeSpan.FromMinutes(duration));
+
+        // Assert
+        Assert.IsType<WasherState.Idle>(washer.State);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetProgramsWithDuration))]
+    public void Washer_WhenRunningAndProgramDurationNotElapsed_IsRunningSameProgram(WasherProgram program, int duration)
+    {
+        // Arrange
+        var washer = GetPoweredWasher();
+        washer.SwitchOn();
+        washer.StartProgram(program);
+
+        // Act
+        _clock.Advance(TimeSpan.FromMinutes(duration - 1));
+
+        // Assert
+        var running = Assert.IsType<WasherState.Running>(washer.State);
+        Assert.Equal(program, running.Program);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetProgramsWithDuration))]
+    public void Washer_WhenRunning_MeasuresElapsedFromProgramStart(WasherProgram program, int duration)
+    {
+        // Arrange
+        var washer = GetPoweredWasher();
+        washer.SwitchOn();
+        _clock.Advance(TimeSpan.FromMinutes(duration));
+        washer.StartProgram(program);
+        var remainingMins = 1;
+
+        // Act
+        _clock.Advance(TimeSpan.FromMinutes(duration - remainingMins));
+
+        // Assert
+        var running = Assert.IsType<WasherState.Running>(washer.State);
+        Assert.Equal(program, running.Program);
+        _clock.Advance(TimeSpan.FromMinutes(remainingMins));
+        Assert.IsType<WasherState.Idle>(washer.State);
+    }
+
     private Washer GetPoweredWasher()
     {
-        var washer = new Washer(Guid.NewGuid(), _powerSource);
+        var washer = new Washer(Guid.NewGuid(), _powerSource, _clock);
         _powerSource.IsPowerOn.Returns(true);
 
         return washer;
@@ -214,6 +274,15 @@ public class WasherTests
         for (int i = 0; i < programs.Length; i++)
         {
             yield return new object[] { programs[i] };
+        }
+    }
+
+    public static IEnumerable<object[]> GetProgramsWithDuration()
+    {
+        var programs = Enum.GetValues<WasherProgram>();
+        for (int i = 0; i < programs.Length; i++)
+        {
+            yield return new object[] { programs[i], WasherSettings.ProgramDurationMap[programs[i]] };
         }
     }
 }
