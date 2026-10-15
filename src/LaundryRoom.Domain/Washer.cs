@@ -49,6 +49,6 @@ public class Washer
     private void OnCycleElapsed()
     {
         _timer?.Dispose();
-        State = new WasherState.Idle();
+        StopProgram();
     }
 }

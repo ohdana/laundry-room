@@ -224,7 +224,7 @@ public class WasherTests
 
     [Theory]
     [MemberData(nameof(GetPrograms))]
-    public void Washer_WhenRunningAndProgramDurationNotElapsed_IsRunningSameProgram(WasherProgram program)
+    public void Washer_WhenProgramDurationNotElapsed_IsRunningSameProgram(WasherProgram program)
     {
         // Arrange
         var washer = GetPoweredWasher();
