@@ -41,8 +41,7 @@ public class Washer
         if (State is WasherState.Running) throw new InvalidOperationException("To start a new program, stop the current program first.");
         
         State = new WasherState.Running(program);
-        var duration = TimeSpan.FromMinutes(WasherSettings.ProgramDurationMap[program]);
-        _timer = _clock.CreateTimer(_ => OnCycleElapsed(), null, duration, Timeout.InfiniteTimeSpan);
+        _timer = _clock.CreateTimer(_ => OnCycleElapsed(), null, program.Duration(), Timeout.InfiniteTimeSpan);
     }
 
     private void StopProgram() => State = new WasherState.Idle();

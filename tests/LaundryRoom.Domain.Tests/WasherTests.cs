@@ -207,8 +207,8 @@ public class WasherTests
     }
 
     [Theory]
-    [MemberData(nameof(GetProgramsWithDuration))]
-    public void Washer_WhenProgramDurationElapsed_IsIdle(WasherProgram program, int duration)
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenProgramDurationElapsed_IsIdle(WasherProgram program)
     {
         // Arrange
         var washer = GetPoweredWasher();
@@ -216,15 +216,15 @@ public class WasherTests
         washer.StartProgram(program);
 
         // Act
-        _clock.Advance(TimeSpan.FromMinutes(duration));
+        _clock.Advance(program.Duration());
 
         // Assert
         Assert.IsType<WasherState.Idle>(washer.State);
     }
 
     [Theory]
-    [MemberData(nameof(GetProgramsWithDuration))]
-    public void Washer_WhenRunningAndProgramDurationNotElapsed_IsRunningSameProgram(WasherProgram program, int duration)
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenRunningAndProgramDurationNotElapsed_IsRunningSameProgram(WasherProgram program)
     {
         // Arrange
         var washer = GetPoweredWasher();
@@ -232,7 +232,7 @@ public class WasherTests
         washer.StartProgram(program);
 
         // Act
-        _clock.Advance(TimeSpan.FromMinutes(duration - 1));
+        _clock.Advance(TimeSpan.FromMinutes(program.Duration().Minutes - 1));
 
         // Assert
         var running = Assert.IsType<WasherState.Running>(washer.State);
@@ -240,23 +240,24 @@ public class WasherTests
     }
 
     [Theory]
-    [MemberData(nameof(GetProgramsWithDuration))]
-    public void Washer_WhenRunning_MeasuresElapsedFromProgramStart(WasherProgram program, int duration)
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenRunning_MeasuresElapsedFromProgramStart(WasherProgram program)
     {
         // Arrange
+        var duration = program.Duration();
         var washer = GetPoweredWasher();
         washer.SwitchOn();
-        _clock.Advance(TimeSpan.FromMinutes(duration));
+        _clock.Advance(duration);
         washer.StartProgram(program);
-        var remainingMins = 1;
+        var remainingMins = TimeSpan.FromMinutes(1);
 
         // Act
-        _clock.Advance(TimeSpan.FromMinutes(duration - remainingMins));
+        _clock.Advance(duration.Subtract(remainingMins));
 
         // Assert
         var running = Assert.IsType<WasherState.Running>(washer.State);
         Assert.Equal(program, running.Program);
-        _clock.Advance(TimeSpan.FromMinutes(remainingMins));
+        _clock.Advance(remainingMins);
         Assert.IsType<WasherState.Idle>(washer.State);
     }
 
@@ -274,15 +275,6 @@ public class WasherTests
         for (int i = 0; i < programs.Length; i++)
         {
             yield return new object[] { programs[i] };
-        }
-    }
-
-    public static IEnumerable<object[]> GetProgramsWithDuration()
-    {
-        var programs = Enum.GetValues<WasherProgram>();
-        for (int i = 0; i < programs.Length; i++)
-        {
-            yield return new object[] { programs[i], WasherSettings.ProgramDurationMap[programs[i]] };
         }
     }
 }

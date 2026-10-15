@@ -5,12 +5,12 @@ public enum WasherProgram
     Cotton60
 }
 
-public class WasherSettings
+public static class WasherProgramExtensions
 {
-    public static Dictionary<WasherProgram, int> ProgramDurationMap { get; } = new()
+    public static TimeSpan Duration(this WasherProgram program) => program switch
     {
-        [WasherProgram.Quick] = 30,
-        [WasherProgram.Delicate] = 45,
-        [WasherProgram.Cotton60] = 55
+        WasherProgram.Quick => TimeSpan.FromMinutes(30),
+        WasherProgram.Delicate => TimeSpan.FromMinutes(45),
+        WasherProgram.Cotton60 => TimeSpan.FromMinutes(55)
     };
 }
