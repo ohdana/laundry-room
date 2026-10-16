@@ -44,11 +44,11 @@ public class Dryer
         _timer = _clock.CreateTimer(_ => OnCycleElapsed(), null, program.Duration(), Timeout.InfiniteTimeSpan);
     }
 
-    private void StopProgram() => State = new DryerState.Idle();
-
-    private void OnCycleElapsed()
+    private void StopProgram()
     {
         _timer?.Dispose();
-        StopProgram();
+        State = new DryerState.Idle();
     }
+
+    private void OnCycleElapsed() => StopProgram();
 }

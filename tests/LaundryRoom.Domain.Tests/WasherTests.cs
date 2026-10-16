@@ -261,6 +261,30 @@ public class WasherTests
         Assert.IsType<WasherState.Idle>(washer.State);
     }
 
+    [Theory]
+    [MemberData(nameof(GetProgramPairs))]
+    public void Washer_WhenRunningSwitchedOffAndStartAgain_MeasuresElapsedFromNewStart(
+        WasherProgram program1, WasherProgram program2)
+    {
+        // Arrange
+        var washer = GetPoweredWasher();
+        washer.SwitchOn();
+        washer.StartProgram(program1);
+        _clock.Advance(program1.Duration() / 2);
+        washer.SwitchOff();
+        washer.SwitchOn();
+        washer.StartProgram(program2);
+
+        // Act
+        _clock.Advance(program1.Duration() / 2);
+
+        // Assert
+        var running = Assert.IsType<WasherState.Running>(washer.State);
+        Assert.Equal(program2, running.Program);
+        _clock.Advance(program2.Duration() - program1.Duration() / 2);
+        Assert.IsType<WasherState.Idle>(washer.State);
+    }
+
     private Washer GetPoweredWasher()
     {
         var washer = new Washer(Guid.NewGuid(), _powerSource, _clock);
@@ -275,6 +299,19 @@ public class WasherTests
         for (int i = 0; i < programs.Length; i++)
         {
             yield return new object[] { programs[i] };
+        }
+    }
+
+    public static IEnumerable<object[]> GetProgramPairs()
+    {
+        var programs = Enum.GetValues<WasherProgram>();
+        for (int i = 0; i < programs.Length; i++)
+        {
+            for (int j = 0; j < programs.Length; j++)
+            {
+                if (i == j) continue;
+                yield return new object[] { programs[i], programs[j] };
+            }
         }
     }
 }

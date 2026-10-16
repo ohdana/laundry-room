@@ -261,6 +261,30 @@ public class DryerTests
         Assert.IsType<DryerState.Idle>(dryer.State);
     }
 
+    [Theory]
+    [MemberData(nameof(GetProgramPairs))]
+    public void Dryer_WhenRunningSwitchedOffAndStartAgain_MeasuresElapsedFromNewStart(
+        DryerProgram program1, DryerProgram program2)
+    {
+        // Arrange
+        var washer = GetPoweredDryer();
+        washer.SwitchOn();
+        washer.StartProgram(program1);
+        _clock.Advance(program1.Duration() / 2);
+        washer.SwitchOff();
+        washer.SwitchOn();
+        washer.StartProgram(program2);
+
+        // Act
+        _clock.Advance(program1.Duration() / 2);
+
+        // Assert
+        var running = Assert.IsType<DryerState.Running>(washer.State);
+        Assert.Equal(program2, running.Program);
+        _clock.Advance(program2.Duration() - program1.Duration() / 2);
+        Assert.IsType<DryerState.Idle>(washer.State);
+    }
+
     private Dryer GetPoweredDryer()
     {
         var dryer = new Dryer(Guid.NewGuid(), _powerSource, _clock);
@@ -275,6 +299,19 @@ public class DryerTests
         for (int i = 0; i < programs.Length; i++)
         {
             yield return new object[] { programs[i] };
+        }
+    }
+
+    public static IEnumerable<object[]> GetProgramPairs()
+    {
+        var programs = Enum.GetValues<DryerProgram>();
+        for (int i = 0; i < programs.Length; i++)
+        {
+            for (int j = 0; j < programs.Length; j++)
+            {
+                if (i == j) continue;
+                yield return new object[] { programs[i], programs[j] };
+            }
         }
     }
 }
