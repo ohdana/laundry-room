@@ -1,17 +1,23 @@
 using Xunit;
 using NSubstitute;
+using Microsoft.Extensions.Time.Testing;
 
 public class DryerTests
 {
     private IPowerSource _powerSource;
-    public DryerTests() => _powerSource = Substitute.For<IPowerSource>();
+    private FakeTimeProvider _clock;
+    public DryerTests()
+    {
+        _powerSource = Substitute.For<IPowerSource>();
+        _clock = new FakeTimeProvider();
+    }
 
     [Fact]
     public void Dryer_WhenCreatedWithValidId_IsOff()
     {
         // Arrange
         // Act
-        var dryer = new Dryer(Guid.NewGuid(), _powerSource);
+        var dryer = new Dryer(Guid.NewGuid(), _powerSource, _clock);
 
         // Assert
         Assert.False(dryer.IsOn);
@@ -22,7 +28,7 @@ public class DryerTests
     {
         // Arrange
         // Act
-        var dryer = new Dryer(Guid.NewGuid(), _powerSource);
+        var dryer = new Dryer(Guid.NewGuid(), _powerSource, _clock);
 
         // Assert
         Assert.IsType<DryerState.Idle>(dryer.State);
@@ -34,7 +40,7 @@ public class DryerTests
         // Arrange
         // Act
         // Assert
-        Assert.Throws<ArgumentException>(() => new Dryer(Guid.Empty, _powerSource));
+        Assert.Throws<ArgumentException>(() => new Dryer(Guid.Empty, _powerSource, _clock));
     }
 
     [Fact]
@@ -43,7 +49,7 @@ public class DryerTests
         // Arrange
         // Act
         // Assert
-        Assert.Throws<ArgumentNullException>(() => new Dryer(Guid.NewGuid(), null!));
+        Assert.Throws<ArgumentNullException>(() => new Dryer(Guid.NewGuid(), null!, _clock));
     }
 
     [Fact]
@@ -63,7 +69,7 @@ public class DryerTests
     public void Dryer_WhenNotPoweredAndSwitchOnCalled_IsOff()
     {
         // Arrange
-        var dryer = new Dryer(Guid.NewGuid(), _powerSource);
+        var dryer = new Dryer(Guid.NewGuid(), _powerSource, _clock);
 
         // Act
         dryer.SwitchOn();
@@ -200,9 +206,64 @@ public class DryerTests
         Assert.False(dryer.IsOn);
     }
 
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenProgramDurationElapsed_IsIdle(DryerProgram program)
+    {
+        // Arrange
+        var dryer = GetPoweredDryer();
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+
+        // Act
+        _clock.Advance(program.Duration());
+
+        // Assert
+        Assert.IsType<DryerState.Idle>(dryer.State);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenProgramDurationNotElapsed_IsRunningSameProgram(DryerProgram program)
+    {
+        // Arrange
+        var dryer = GetPoweredDryer();
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+
+        // Act
+        _clock.Advance(program.Duration().Subtract(TimeSpan.FromMinutes(1)));
+
+        // Assert
+        var running = Assert.IsType<DryerState.Running>(dryer.State);
+        Assert.Equal(program, running.Program);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenRunning_MeasuresElapsedFromProgramStart(DryerProgram program)
+    {
+        // Arrange
+        var duration = program.Duration();
+        var dryer = GetPoweredDryer();
+        dryer.SwitchOn();
+        _clock.Advance(duration);
+        dryer.StartProgram(program);
+        var remainingMins = TimeSpan.FromMinutes(1);
+
+        // Act
+        _clock.Advance(duration.Subtract(remainingMins));
+
+        // Assert
+        var running = Assert.IsType<DryerState.Running>(dryer.State);
+        Assert.Equal(program, running.Program);
+        _clock.Advance(remainingMins);
+        Assert.IsType<DryerState.Idle>(dryer.State);
+    }
+
     private Dryer GetPoweredDryer()
     {
-        var dryer = new Dryer(Guid.NewGuid(), _powerSource);
+        var dryer = new Dryer(Guid.NewGuid(), _powerSource, _clock);
         _powerSource.IsPowerOn.Returns(true);
 
         return dryer;

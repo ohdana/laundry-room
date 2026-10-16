@@ -22,4 +22,4 @@ Flat names that differ only in case are the same flat ('3B' = '3b').
 
 - Durations.
 Washer: Quick -- 30 mins, Delicate -- 45 mins, Cotton60 -- 80 mins.
-Dryer: Cold -- 240 mins, Normal -- 240 mins, Hot -- 240 mins.
+Dryer: Cold -- 240 mins, Normal -- 210 mins, Hot -- 180 mins.
