@@ -267,22 +267,22 @@ public class DryerTests
         DryerProgram program1, DryerProgram program2)
     {
         // Arrange
-        var washer = GetPoweredDryer();
-        washer.SwitchOn();
-        washer.StartProgram(program1);
+        var dryer = GetPoweredDryer();
+        dryer.SwitchOn();
+        dryer.StartProgram(program1);
         _clock.Advance(program1.Duration() / 2);
-        washer.SwitchOff();
-        washer.SwitchOn();
-        washer.StartProgram(program2);
+        dryer.SwitchOff();
+        dryer.SwitchOn();
+        dryer.StartProgram(program2);
 
         // Act
         _clock.Advance(program1.Duration() / 2);
 
         // Assert
-        var running = Assert.IsType<DryerState.Running>(washer.State);
+        var running = Assert.IsType<DryerState.Running>(dryer.State);
         Assert.Equal(program2, running.Program);
         _clock.Advance(program2.Duration() - program1.Duration() / 2);
-        Assert.IsType<DryerState.Idle>(washer.State);
+        Assert.IsType<DryerState.Idle>(dryer.State);
     }
 
     private Dryer GetPoweredDryer()
