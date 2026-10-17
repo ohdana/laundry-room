@@ -3,6 +3,8 @@ public class Dryer
     public Guid Id { get; }
     public bool IsOn { get; private set; }
     public DryerState State { get; private set; } = new DryerState.Idle();
+    public event Action<DryerProgram>? ProgramStarted;
+    public event Action<DryerProgram>? ProgramCompleted;
 
     private readonly IPowerSource _powerSource;
     private readonly TimeProvider _clock;
@@ -14,10 +16,9 @@ public class Dryer
         if (powerSource == null) throw new ArgumentNullException(nameof(powerSource));
 
         Id = id;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _powerSource = powerSource;
         _powerSource.PowerOff += OnPowerOff;
-
-        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     private void OnPowerOff() => SwitchOff();
@@ -41,7 +42,8 @@ public class Dryer
         if (State is DryerState.Running) throw new InvalidOperationException("To start a new program, stop the current program first.");
         
         State = new DryerState.Running(program);
-        _timer = _clock.CreateTimer(_ => OnCycleElapsed(), null, program.Duration(), Timeout.InfiniteTimeSpan);
+        _timer = _clock.CreateTimer(_ => OnCycleElapsed(program), null, program.Duration(), Timeout.InfiniteTimeSpan);
+        ProgramStarted?.Invoke(program);
     }
 
     private void StopProgram()
@@ -50,5 +52,9 @@ public class Dryer
         State = new DryerState.Idle();
     }
 
-    private void OnCycleElapsed() => StopProgram();
+    private void OnCycleElapsed(DryerProgram program)
+    {
+        StopProgram();
+        ProgramCompleted?.Invoke(program);
+    }
 }

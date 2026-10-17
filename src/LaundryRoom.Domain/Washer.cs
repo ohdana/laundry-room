@@ -16,9 +16,7 @@ public class Washer
         if (powerSource == null) throw new ArgumentNullException(nameof(powerSource));
 
         Id = id;
-
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
-        
         _powerSource = powerSource;
         _powerSource.PowerOff += OnPowerOff;
     }

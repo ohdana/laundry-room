@@ -285,6 +285,144 @@ public class DryerTests
         Assert.IsType<DryerState.Idle>(dryer.State);
     }
 
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenStarted_ReportsStarted(DryerProgram program)
+    {
+        // Arrange
+        var started = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramStarted += p => started.Add(p);
+        dryer.SwitchOn();
+
+        // Act
+        dryer.StartProgram(program);
+
+        // Assert
+        Assert.Equal(new[] { program }, started);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenProgramDurationElapsed_ReportsCompleted(DryerProgram program)
+    {
+        // Arrange
+        var completed = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramCompleted += p => completed.Add(p);
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+
+        // Act
+        _clock.Advance(program.Duration());
+
+        // Assert
+        Assert.Equal(new[] { program }, completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenProgramDurationNotElapsed_DoesNotReportCompleted(DryerProgram program)
+    {
+        // Arrange
+        var completed = new List<DryerProgram>();
+        var started = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramCompleted += p => completed.Add(p);
+        dryer.ProgramStarted += p => started.Add(p);
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+
+        // Act
+        _clock.Advance(program.Duration().Subtract(TimeSpan.FromMinutes(1)));
+
+        // Assert
+        Assert.Equal(new[] { program }, started);
+        Assert.Empty(completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenHoursPassedAfterProgramDurationElapsed_StillSingleReport(DryerProgram program)
+    {
+        // Arrange
+        var completed = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramCompleted += p => completed.Add(p);
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+
+        // Act
+        _clock.Advance(program.Duration() * 5);
+
+        // Assert
+        Assert.Equal(new[] { program }, completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetProgramPairs))]
+    public void Dryer_WhenTwoDifferentCyclesCompletedBackToBack_ReportsExactlyTwiceInOrder(
+        DryerProgram program1, DryerProgram program2)
+    {
+        // Arrange
+        var completed = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramCompleted += p => completed.Add(p);
+        dryer.SwitchOn();
+
+        // Act
+        dryer.StartProgram(program1);
+        _clock.Advance(program1.Duration());
+        dryer.StartProgram(program2);
+        _clock.Advance(program2.Duration());
+
+        // Assert
+        Assert.Equal(new[] { program1, program2 }, completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenTwoSameCyclesCompletedBackToBack_ReportsExactlyTwiceInOrder(DryerProgram program)
+    {
+        // Arrange
+        var completed = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramCompleted += p => completed.Add(p);
+        dryer.SwitchOn();
+
+        // Act
+        dryer.StartProgram(program);
+        _clock.Advance(program.Duration());
+        dryer.StartProgram(program);
+        _clock.Advance(program.Duration());
+
+        // Assert
+        Assert.Equal(new[] { program, program }, completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenSwitchedOffMidCycleAndHoursPassed_DoesNotReportCompleted(DryerProgram program)
+    {
+        // Arrange
+        var completed = new List<DryerProgram>();
+        var started = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramCompleted += p => completed.Add(p);
+        dryer.ProgramStarted += p => started.Add(p);
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+        _clock.Advance(program.Duration() / 2);
+
+        // Act
+        dryer.SwitchOff();
+        _clock.Advance(program.Duration() * 5);
+
+        // Assert
+        Assert.Equal(new[] { program }, started);
+        Assert.Empty(completed);
+    }
+
     private Dryer GetPoweredDryer()
     {
         var dryer = new Dryer(Guid.NewGuid(), _powerSource, _clock);
