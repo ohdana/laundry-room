@@ -3,6 +3,8 @@ public class Washer
     public Guid Id { get; }
     public bool IsOn { get; private set; }
     public WasherState State { get; private set; } = new WasherState.Idle();
+    public event Action<WasherProgram>? ProgramStarted;
+    public event Action<WasherProgram>? ProgramCompleted;
 
     private readonly IPowerSource _powerSource;
     private readonly TimeProvider _clock;
@@ -14,10 +16,11 @@ public class Washer
         if (powerSource == null) throw new ArgumentNullException(nameof(powerSource));
 
         Id = id;
-        _powerSource = powerSource;
-        _powerSource.PowerOff += OnPowerOff;
 
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        
+        _powerSource = powerSource;
+        _powerSource.PowerOff += OnPowerOff;
     }
 
     private void OnPowerOff() => SwitchOff();
@@ -41,7 +44,8 @@ public class Washer
         if (State is WasherState.Running) throw new InvalidOperationException("To start a new program, stop the current program first.");
         
         State = new WasherState.Running(program);
-        _timer = _clock.CreateTimer(_ => OnCycleElapsed(), null, program.Duration(), Timeout.InfiniteTimeSpan);
+        _timer = _clock.CreateTimer(_ => OnCycleElapsed(program), null, program.Duration(), Timeout.InfiniteTimeSpan);
+        ProgramStarted?.Invoke(program);
     }
 
     private void StopProgram()
@@ -50,5 +54,9 @@ public class Washer
         State = new WasherState.Idle();
     }
 
-    private void OnCycleElapsed() => StopProgram();
+    private void OnCycleElapsed(WasherProgram program)
+    {
+        StopProgram();
+        ProgramCompleted?.Invoke(program);
+    }
 }

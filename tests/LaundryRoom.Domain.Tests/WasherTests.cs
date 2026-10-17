@@ -285,6 +285,144 @@ public class WasherTests
         Assert.IsType<WasherState.Idle>(washer.State);
     }
 
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenStarted_ReportsStarted(WasherProgram program)
+    {
+        // Arrange
+        var started = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramStarted += p => started.Add(p);
+        washer.SwitchOn();
+
+        // Act
+        washer.StartProgram(program);
+
+        // Assert
+        Assert.Equal(new[] { program }, started);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenProgramDurationElapsed_ReportsCompleted(WasherProgram program)
+    {
+        // Arrange
+        var completed = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramCompleted += p => completed.Add(p);
+        washer.SwitchOn();
+        washer.StartProgram(program);
+
+        // Act
+        _clock.Advance(program.Duration());
+
+        // Assert
+        Assert.Equal(new[] { program }, completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenProgramDurationNotElapsed_DoesNotReportCompleted(WasherProgram program)
+    {
+        // Arrange
+        var completed = new List<WasherProgram>();
+        var started = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramCompleted += p => completed.Add(p);
+        washer.ProgramStarted += p => started.Add(p);
+        washer.SwitchOn();
+        washer.StartProgram(program);
+
+        // Act
+        _clock.Advance(program.Duration().Subtract(TimeSpan.FromMinutes(1)));
+
+        // Assert
+        Assert.Equal(new[] { program }, started);
+        Assert.Empty(completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenHoursPassedAfterProgramDurationElapsed_StillSingleReport(WasherProgram program)
+    {
+        // Arrange
+        var completed = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramCompleted += p => completed.Add(p);
+        washer.SwitchOn();
+        washer.StartProgram(program);
+
+        // Act
+        _clock.Advance(program.Duration() * 5);
+
+        // Assert
+        Assert.Equal(new[] { program }, completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetProgramPairs))]
+    public void Washer_WhenTwoDifferentCyclesCompletedBackToBack_ReportsExactlyTwiceInOrder(
+        WasherProgram program1, WasherProgram program2)
+    {
+        // Arrange
+        var completed = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramCompleted += p => completed.Add(p);
+        washer.SwitchOn();
+
+        // Act
+        washer.StartProgram(program1);
+        _clock.Advance(program1.Duration());
+        washer.StartProgram(program2);
+        _clock.Advance(program2.Duration());
+
+        // Assert
+        Assert.Equal(new[] { program1, program2 }, completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenTwoSameCyclesCompletedBackToBack_ReportsExactlyTwiceInOrder(WasherProgram program)
+    {
+        // Arrange
+        var completed = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramCompleted += p => completed.Add(p);
+        washer.SwitchOn();
+
+        // Act
+        washer.StartProgram(program);
+        _clock.Advance(program.Duration());
+        washer.StartProgram(program);
+        _clock.Advance(program.Duration());
+
+        // Assert
+        Assert.Equal(new[] { program, program }, completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenSwitchedOffMidCycleAndHoursPassed_DoesNotReportCompleted(WasherProgram program)
+    {
+        // Arrange
+        var completed = new List<WasherProgram>();
+        var started = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramCompleted += p => completed.Add(p);
+        washer.ProgramStarted += p => started.Add(p);
+        washer.SwitchOn();
+        washer.StartProgram(program);
+        _clock.Advance(program.Duration() / 2);
+
+        // Act
+        washer.SwitchOff();
+        _clock.Advance(program.Duration() * 5);
+
+        // Assert
+        Assert.Equal(new[] { program }, started);
+        Assert.Empty(completed);
+    }
+
     private Washer GetPoweredWasher()
     {
         var washer = new Washer(Guid.NewGuid(), _powerSource, _clock);
