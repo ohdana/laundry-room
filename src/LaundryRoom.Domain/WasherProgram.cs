@@ -12,6 +12,6 @@ public static class WasherProgramExtensions
         WasherProgram.Quick    => TimeSpan.FromMinutes(30),
         WasherProgram.Delicate => TimeSpan.FromMinutes(45),
         WasherProgram.Cotton60 => TimeSpan.FromMinutes(55),
-        _                      => throw new ArgumentOutOfRangeException(nameof(program), program, null);
+        _                      => throw new ArgumentOutOfRangeException(nameof(program), program, null)
     };
 }

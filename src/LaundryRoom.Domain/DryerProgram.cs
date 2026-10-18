@@ -12,6 +12,6 @@ public static class DryerProgramExtensions
         DryerProgram.Cold   => TimeSpan.FromMinutes(240),
         DryerProgram.Normal => TimeSpan.FromMinutes(210),
         DryerProgram.Hot    => TimeSpan.FromMinutes(180),
-        _                   => throw new ArgumentOutOfRangeException(nameof(program), program, null);
+        _                   => throw new ArgumentOutOfRangeException(nameof(program), program, null)
     };
 }
