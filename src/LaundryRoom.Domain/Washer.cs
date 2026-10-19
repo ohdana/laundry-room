@@ -5,6 +5,7 @@ public class Washer
     public WasherState State { get; private set; } = new WasherState.Idle();
     public event Action<WasherProgram>? ProgramStarted;
     public event Action<WasherProgram>? ProgramCompleted;
+    public event Action<WasherProgram>? ProgramInterrupted;
 
     private readonly IPowerSource _powerSource;
     private readonly TimeProvider _clock;
@@ -31,8 +32,10 @@ public class Washer
 
     public void SwitchOff()
     {
+        var program = State is WasherState.Running running ? running.Program : (WasherProgram?)null;
         StopProgram();
         IsOn = false;
+        if (program != null) ProgramInterrupted?.Invoke(program.Value);
     }
 
     public void StartProgram(WasherProgram program)

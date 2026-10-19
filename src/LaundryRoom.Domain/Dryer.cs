@@ -5,6 +5,7 @@ public class Dryer
     public DryerState State { get; private set; } = new DryerState.Idle();
     public event Action<DryerProgram>? ProgramStarted;
     public event Action<DryerProgram>? ProgramCompleted;
+    public event Action<DryerProgram>? ProgramInterrupted;
 
     private readonly IPowerSource _powerSource;
     private readonly TimeProvider _clock;
@@ -31,8 +32,10 @@ public class Dryer
 
     public void SwitchOff()
     {
+        var program = State is DryerState.Running running ? running.Program : (DryerProgram?)null;
         StopProgram();
         IsOn = false;
+        if (program != null) ProgramInterrupted?.Invoke(program.Value);
     }
 
     public void StartProgram(DryerProgram program)

@@ -189,7 +189,6 @@ public class WasherTests
     [MemberData(nameof(GetPrograms))]
     public void Washer_WhenRunningAndPowerLostAndBackOn_IsOff(WasherProgram program)
     {
-
         // Arrange
         var washer = GetPoweredWasher();
         washer.SwitchOn();
@@ -421,6 +420,80 @@ public class WasherTests
         // Assert
         Assert.Equal(new[] { program }, started);
         Assert.Empty(completed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenRunningAndSwitchOffCalled_ReportsInterrupted(WasherProgram program)
+    {
+        // Arrange
+        var interrupted = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramInterrupted += p => interrupted.Add(p);
+        washer.SwitchOn();
+        washer.StartProgram(program);
+
+        // Act
+        washer.SwitchOff();
+
+        // Assert
+        Assert.Equal(new[] { program }, interrupted);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenRunningAndPowerLost_ReportsInterrupted(WasherProgram program)
+    {
+        // Arrange
+        var interrupted = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramInterrupted += p => interrupted.Add(p);
+        washer.SwitchOn();
+        washer.StartProgram(program);
+        _powerSource.IsPowerOn.Returns(false);
+        _powerSource.PowerOff += Raise.Event<Action>();
+
+        // Act
+        _powerSource.IsPowerOn.Returns(true);
+        _powerSource.PowerOn += Raise.Event<Action>();
+
+        // Assert
+        Assert.Equal(new[] { program }, interrupted);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Washer_WhenInterruptedAndHoursPassed_DoesNotReportCompleted(WasherProgram program)
+    {
+        // Arrange
+        var interrupted = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramInterrupted += p => interrupted.Add(p);
+        washer.SwitchOn();
+        washer.StartProgram(program);
+        washer.SwitchOff();
+
+        // Act
+        _clock.Advance(program.Duration() * 5);
+
+        // Assert
+        Assert.Equal(new[] { program }, interrupted);
+    }
+
+    [Fact]
+    public void Washer_WhenIdleAndSwitchOffCalled_DoesNotReportInterrupted()
+    {
+        // Arrange
+        var interrupted = new List<WasherProgram>();
+        var washer = GetPoweredWasher();
+        washer.ProgramInterrupted += p => interrupted.Add(p);
+        washer.SwitchOn();
+
+        // Act
+        washer.SwitchOff();
+
+        // Assert
+        Assert.Empty(interrupted);
     }
 
     private Washer GetPoweredWasher()

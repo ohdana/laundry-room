@@ -16,6 +16,7 @@ public abstract record CycleOutcome
             CompletedAt = completedAt;
         }
     }
+    
     public sealed record Interrupted : CycleOutcome
     {
         public DateTimeOffset StartedAt { get; }

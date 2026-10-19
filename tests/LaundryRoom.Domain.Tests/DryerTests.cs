@@ -421,6 +421,78 @@ public class DryerTests
         // Assert
         Assert.Equal(new[] { program }, started);
         Assert.Empty(completed);
+    }[Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenRunningAndSwitchOffCalled_ReportsInterrupted(DryerProgram program)
+    {
+        // Arrange
+        var interrupted = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramInterrupted += p => interrupted.Add(p);
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+
+        // Act
+        dryer.SwitchOff();
+
+        // Assert
+        Assert.Equal(new[] { program }, interrupted);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenRunningAndPowerLost_ReportsInterrupted(DryerProgram program)
+    {
+        // Arrange
+        var interrupted = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramInterrupted += p => interrupted.Add(p);
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+        _powerSource.IsPowerOn.Returns(false);
+        _powerSource.PowerOff += Raise.Event<Action>();
+
+        // Act
+        _powerSource.IsPowerOn.Returns(true);
+        _powerSource.PowerOn += Raise.Event<Action>();
+
+        // Assert
+        Assert.Equal(new[] { program }, interrupted);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Dryer_WhenInterruptedAndHoursPassed_DoesNotReportCompleted(DryerProgram program)
+    {
+        // Arrange
+        var interrupted = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramInterrupted += p => interrupted.Add(p);
+        dryer.SwitchOn();
+        dryer.StartProgram(program);
+        dryer.SwitchOff();
+
+        // Act
+        _clock.Advance(program.Duration() * 5);
+
+        // Assert
+        Assert.Equal(new[] { program }, interrupted);
+    }
+
+    [Fact]
+    public void Dryer_WhenIdleAndSwitchOffCalled_DoesNotReportInterrupted()
+    {
+        // Arrange
+        var interrupted = new List<DryerProgram>();
+        var dryer = GetPoweredDryer();
+        dryer.ProgramInterrupted += p => interrupted.Add(p);
+        dryer.SwitchOn();
+
+        // Act
+        dryer.SwitchOff();
+
+        // Assert
+        Assert.Empty(interrupted);
     }
 
     private Dryer GetPoweredDryer()
