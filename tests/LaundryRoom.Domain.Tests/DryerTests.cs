@@ -466,8 +466,10 @@ public class DryerTests
     {
         // Arrange
         var interrupted = new List<DryerProgram>();
+        var completed = new List<DryerProgram>();
         var dryer = GetPoweredDryer();
         dryer.ProgramInterrupted += p => interrupted.Add(p);
+        dryer.ProgramCompleted += p => completed.Add(p);
         dryer.SwitchOn();
         dryer.StartProgram(program);
         dryer.SwitchOff();
@@ -477,6 +479,7 @@ public class DryerTests
 
         // Assert
         Assert.Equal(new[] { program }, interrupted);
+        Assert.Empty(completed);
     }
 
     [Fact]

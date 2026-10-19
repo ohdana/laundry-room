@@ -467,8 +467,10 @@ public class WasherTests
     {
         // Arrange
         var interrupted = new List<WasherProgram>();
+        var completed = new List<WasherProgram>();
         var washer = GetPoweredWasher();
         washer.ProgramInterrupted += p => interrupted.Add(p);
+        washer.ProgramCompleted += p => completed.Add(p);
         washer.SwitchOn();
         washer.StartProgram(program);
         washer.SwitchOff();
@@ -478,6 +480,7 @@ public class WasherTests
 
         // Assert
         Assert.Equal(new[] { program }, interrupted);
+        Assert.Empty(completed);
     }
 
     [Fact]
