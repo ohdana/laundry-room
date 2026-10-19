@@ -421,7 +421,9 @@ public class DryerTests
         // Assert
         Assert.Equal(new[] { program }, started);
         Assert.Empty(completed);
-    }[Theory]
+    }
+    
+    [Theory]
     [MemberData(nameof(GetPrograms))]
     public void Dryer_WhenRunningAndSwitchOffCalled_ReportsInterrupted(DryerProgram program)
     {
