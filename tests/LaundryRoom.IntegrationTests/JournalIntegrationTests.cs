@@ -80,6 +80,37 @@ public class JournalIntegrationTests
         Assert.Equal(startedAt.Add(elapsed), outcome.InterruptedAt);
     }
 
+    [Theory]
+    [MemberData(nameof(GetProgramsWithTwoOutcomes))]
+    public void Journal_WhenTwoWasherCyclesEnded_YieldsTwoEntriesInOrder(
+        WasherProgram program, Type outcome1, Type outcome2)
+    {
+        // Arrange
+        var washer = GetAttachedPoweredWasher();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        // Act
+        RunCycleWithOutcome(washer, program, outcome1);
+        RunCycleWithOutcome(washer, program, outcome2);
+
+        // Assert
+        Assert.Equal(2, _journal.Entries.Count);
+        Assert.IsType(outcome1, Assert.IsType<JournalEntry.Washer>(_journal.Entries[0]).Outcome);
+        Assert.IsType(outcome2, Assert.IsType<JournalEntry.Washer>(_journal.Entries[1]).Outcome);
+    }
+
+    private void RunCycleWithOutcome(Washer washer, WasherProgram program, Type outcome)
+    {
+        washer.StartProgram(program);
+        _clock.Advance(program.Duration() / 2);
+        if (outcome == typeof(CycleOutcome.Completed)) _clock.Advance(program.Duration() / 2);
+        else
+        {
+            washer.SwitchOff();
+            washer.SwitchOn();
+        }
+    }
+
     private Washer GetAttachedPoweredWasher()
     {
         _powerSource.IsPowerOn.Returns(true);
@@ -87,6 +118,22 @@ public class JournalIntegrationTests
         _journal.Attach(washer);
         washer.SwitchOn();
         return washer;
+    }
+
+    public static IEnumerable<object[]> GetProgramsWithTwoOutcomes()
+    {
+        var programs = Enum.GetValues<WasherProgram>();
+        Type[] outcomes = { typeof(CycleOutcome.Completed), typeof(CycleOutcome.Interrupted) };
+        foreach (var program in programs)
+        {
+            foreach (var first in outcomes)
+            {
+                foreach (var second in outcomes)
+                {
+                    yield return new object[] { program, first, second };
+                }
+            }
+        }
     }
 
     public static IEnumerable<object[]> GetPrograms()
