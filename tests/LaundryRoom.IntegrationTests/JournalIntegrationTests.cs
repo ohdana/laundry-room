@@ -9,6 +9,7 @@ public class JournalIntegrationTests
     private readonly FakeTimeProvider _clock = new(Start);
     private readonly IPowerSource _powerSource = Substitute.For<IPowerSource>();
     private readonly Guid _washerId = Guid.NewGuid();
+    private readonly Guid _dryerId = Guid.NewGuid();
     private readonly Journal _journal;
     
     public JournalIntegrationTests()
@@ -17,7 +18,7 @@ public class JournalIntegrationTests
     }
 
     [Theory]
-    [MemberData(nameof(GetPrograms))]
+    [MemberData(nameof(GetWasherPrograms))]
     public void Journal_WhenAttachedToWasherAndWasherStarted_YieldsNoEntry(WasherProgram program)
     {
         // Arrange
@@ -33,7 +34,7 @@ public class JournalIntegrationTests
     }
 
     [Theory]
-    [MemberData(nameof(GetPrograms))]
+    [MemberData(nameof(GetWasherPrograms))]
     public void Journal_WhenAttachedToWasherAndWasherCompleted_YieldsCompletedEntry(WasherProgram program)
     {
         // Arrange
@@ -56,7 +57,7 @@ public class JournalIntegrationTests
     }
 
     [Theory]
-    [MemberData(nameof(GetPrograms))]
+    [MemberData(nameof(GetWasherPrograms))]
     public void Journal_WhenAttachedToWasherAndWasherInterrupted_YieldsInterruptedEntry(WasherProgram program)
     {
         // Arrange
@@ -81,7 +82,7 @@ public class JournalIntegrationTests
     }
 
     [Theory]
-    [MemberData(nameof(GetProgramsWithTwoOutcomes))]
+    [MemberData(nameof(GetWasherProgramsWithTwoOutcomes))]
     public void Journal_WhenTwoWasherCyclesEnded_YieldsTwoEntriesInOrder(
         WasherProgram program, Type outcome1, Type outcome2)
     {
@@ -90,8 +91,8 @@ public class JournalIntegrationTests
         _clock.Advance(TimeSpan.FromMinutes(5));
 
         // Act
-        RunCycleWithOutcome(washer, program, outcome1);
-        RunCycleWithOutcome(washer, program, outcome2);
+        RunWasherCycleWithOutcome(washer, program, outcome1);
+        RunWasherCycleWithOutcome(washer, program, outcome2);
 
         // Assert
         Assert.Equal(2, _journal.Entries.Count);
@@ -99,7 +100,92 @@ public class JournalIntegrationTests
         Assert.IsType(outcome2, Assert.IsType<JournalEntry.Washer>(_journal.Entries[1]).Outcome);
     }
 
-    private void RunCycleWithOutcome(Washer washer, WasherProgram program, Type outcome)
+
+
+    [Theory]
+    [MemberData(nameof(GetDryerPrograms))]
+    public void Journal_WhenAttachedToDryerAndDryerStarted_YieldsNoEntry(DryerProgram program)
+    {
+        // Arrange
+        var dryer = GetAttachedPoweredDryer();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        // Act
+        dryer.StartProgram(program);
+        _clock.Advance(program.Duration() / 2);
+
+        // Assert
+        Assert.Equal(0, _journal.Entries.Count);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetDryerPrograms))]
+    public void Journal_WhenAttachedToDryerAndDryerCompleted_YieldsCompletedEntry(DryerProgram program)
+    {
+        // Arrange
+        var dryer = GetAttachedPoweredDryer();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+        dryer.StartProgram(program);
+
+        // Act
+        var startedAt = _clock.GetUtcNow();
+        _clock.Advance(program.Duration());
+
+        // Assert
+        var entry = Assert.IsType<JournalEntry.Dryer>(Assert.Single(_journal.Entries));
+        Assert.Equal(_dryerId, entry.DryerId);
+        Assert.Equal(program, entry.Program);
+        
+        var outcome = Assert.IsType<CycleOutcome.Completed>(entry.Outcome);
+        Assert.Equal(startedAt, outcome.StartedAt);
+        Assert.Equal(startedAt.Add(program.Duration()), outcome.CompletedAt);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetDryerPrograms))]
+    public void Journal_WhenAttachedToDryerAndDryerInterrupted_YieldsInterruptedEntry(DryerProgram program)
+    {
+        // Arrange
+        var dryer = GetAttachedPoweredDryer();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+        dryer.StartProgram(program);
+
+        // Act
+        var startedAt = _clock.GetUtcNow();
+        var elapsed = program.Duration() / 2;
+        _clock.Advance(elapsed);
+        dryer.SwitchOff();
+
+        // Assert
+        var entry = Assert.IsType<JournalEntry.Dryer>(Assert.Single(_journal.Entries));
+        Assert.Equal(_dryerId, entry.DryerId);
+        Assert.Equal(program, entry.Program);
+        
+        var outcome = Assert.IsType<CycleOutcome.Interrupted>(entry.Outcome);
+        Assert.Equal(startedAt, outcome.StartedAt);
+        Assert.Equal(startedAt.Add(elapsed), outcome.InterruptedAt);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetDryerProgramsWithTwoOutcomes))]
+    public void Journal_WhenTwoDryerCyclesEnded_YieldsTwoEntriesInOrder(
+        DryerProgram program, Type outcome1, Type outcome2)
+    {
+        // Arrange
+        var dryer = GetAttachedPoweredDryer();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        // Act
+        RunDryerCycleWithOutcome(dryer, program, outcome1);
+        RunDryerCycleWithOutcome(dryer, program, outcome2);
+
+        // Assert
+        Assert.Equal(2, _journal.Entries.Count);
+        Assert.IsType(outcome1, Assert.IsType<JournalEntry.Dryer>(_journal.Entries[0]).Outcome);
+        Assert.IsType(outcome2, Assert.IsType<JournalEntry.Dryer>(_journal.Entries[1]).Outcome);
+    }
+
+    private void RunWasherCycleWithOutcome(Washer washer, WasherProgram program, Type outcome)
     {
         washer.StartProgram(program);
         _clock.Advance(program.Duration() / 2);
@@ -108,6 +194,18 @@ public class JournalIntegrationTests
         {
             washer.SwitchOff();
             washer.SwitchOn();
+        }
+    }
+
+    private void RunDryerCycleWithOutcome(Dryer dryer, DryerProgram program, Type outcome)
+    {
+        dryer.StartProgram(program);
+        _clock.Advance(program.Duration() / 2);
+        if (outcome == typeof(CycleOutcome.Completed)) _clock.Advance(program.Duration() / 2);
+        else
+        {
+            dryer.SwitchOff();
+            dryer.SwitchOn();
         }
     }
 
@@ -120,28 +218,44 @@ public class JournalIntegrationTests
         return washer;
     }
 
-    public static IEnumerable<object[]> GetProgramsWithTwoOutcomes()
+    private Dryer GetAttachedPoweredDryer()
+    {
+        _powerSource.IsPowerOn.Returns(true);
+        var dryer = new Dryer(_dryerId, _powerSource, _clock);
+        _journal.Attach(dryer);
+        dryer.SwitchOn();
+        return dryer;
+    }
+
+    public static IEnumerable<object[]> GetWasherProgramsWithTwoOutcomes()
     {
         var programs = Enum.GetValues<WasherProgram>();
         Type[] outcomes = { typeof(CycleOutcome.Completed), typeof(CycleOutcome.Interrupted) };
         foreach (var program in programs)
-        {
             foreach (var first in outcomes)
-            {
                 foreach (var second in outcomes)
-                {
                     yield return new object[] { program, first, second };
-                }
-            }
-        }
     }
 
-    public static IEnumerable<object[]> GetPrograms()
+    public static IEnumerable<object[]> GetDryerProgramsWithTwoOutcomes()
     {
-        var programs = Enum.GetValues<WasherProgram>();
-        for (int i = 0; i < programs.Length; i++)
-        {
-            yield return new object[] { programs[i] };
-        }
+        var programs = Enum.GetValues<DryerProgram>();
+        Type[] outcomes = { typeof(CycleOutcome.Completed), typeof(CycleOutcome.Interrupted) };
+        foreach (var program in programs)
+            foreach (var first in outcomes)
+                foreach (var second in outcomes)
+                    yield return new object[] { program, first, second };
+    }
+
+    public static IEnumerable<object[]> GetWasherPrograms()
+    {
+        foreach (var program in Enum.GetValues<WasherProgram>())
+            yield return new object[] { program };
+    }
+
+    public static IEnumerable<object[]> GetDryerPrograms()
+    {
+        foreach (var program in Enum.GetValues<DryerProgram>())
+            yield return new object[] { program };
     }
 }
