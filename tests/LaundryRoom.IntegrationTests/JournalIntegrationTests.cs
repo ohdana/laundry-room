@@ -185,6 +185,48 @@ public class JournalIntegrationTests
         Assert.IsType(outcome2, Assert.IsType<JournalEntry.Dryer>(_journal.Entries[1]).Outcome);
     }
 
+    [Fact]
+    public void Journal_WhenWasherAndDryerCyclesEnded_YieldsTwoEntries()
+    {
+        // Arrange
+        var washerProgram = WasherProgram.Delicate;
+        var washer = GetAttachedPoweredWasher();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        var dryerProgram = DryerProgram.Normal;
+        var dryer = GetAttachedPoweredDryer();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        // Act
+        var washerStartedAt = _clock.GetUtcNow();
+        washer.StartProgram(washerProgram);
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        var dryerStartedAt = _clock.GetUtcNow();
+        dryer.StartProgram(dryerProgram);
+
+        _clock.Advance(washerProgram.Duration() / 10);
+        
+        var washerCutAt = _clock.GetUtcNow();
+        washer.SwitchOff();
+        _clock.Advance(dryerProgram.Duration() - washerProgram.Duration() / 10);
+
+        // Assert
+        Assert.Equal(2, _journal.Entries.Count);
+
+        var washerEntry = Assert.IsType<JournalEntry.Washer>(_journal.Entries[0]);
+        Assert.Equal(_washerId, washerEntry.WasherId);
+        var washerOutcome = Assert.IsType<CycleOutcome.Interrupted>(washerEntry.Outcome);
+        Assert.Equal(washerStartedAt, washerOutcome.StartedAt);
+        Assert.Equal(washerCutAt, washerOutcome.InterruptedAt);
+
+        var dryerEntry = Assert.IsType<JournalEntry.Dryer>(_journal.Entries[1]);
+        Assert.Equal(_dryerId, dryerEntry.DryerId);
+        var dryerOutcome = Assert.IsType<CycleOutcome.Completed>(dryerEntry.Outcome);
+        Assert.Equal(dryerStartedAt, dryerOutcome.StartedAt);
+        Assert.Equal(dryerStartedAt.Add(dryerProgram.Duration()), dryerOutcome.CompletedAt);
+    }
+
     private void RunWasherCycleWithOutcome(Washer washer, WasherProgram program, Type outcome)
     {
         washer.StartProgram(program);
