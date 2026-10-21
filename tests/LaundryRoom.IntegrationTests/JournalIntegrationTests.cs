@@ -185,15 +185,15 @@ public class JournalIntegrationTests
         Assert.IsType(outcome2, Assert.IsType<JournalEntry.Dryer>(_journal.Entries[1]).Outcome);
     }
 
-    [Fact]
-    public void Journal_WhenWasherAndDryerCyclesEnded_YieldsTwoEntries()
+    [Theory]
+    [MemberData(nameof(GetWasherDryerProgramCombinations))]
+    public void Journal_WhenWasherAndDryerCyclesEnded_YieldsTwoEntries(
+        WasherProgram washerProgram, DryerProgram dryerProgram)
     {
         // Arrange
-        var washerProgram = WasherProgram.Delicate;
         var washer = GetAttachedPoweredWasher();
         _clock.Advance(TimeSpan.FromMinutes(5));
 
-        var dryerProgram = DryerProgram.Normal;
         var dryer = GetAttachedPoweredDryer();
         _clock.Advance(TimeSpan.FromMinutes(5));
 
@@ -271,9 +271,8 @@ public class JournalIntegrationTests
 
     public static IEnumerable<object[]> GetWasherProgramsWithTwoOutcomes()
     {
-        var programs = Enum.GetValues<WasherProgram>();
         Type[] outcomes = { typeof(CycleOutcome.Completed), typeof(CycleOutcome.Interrupted) };
-        foreach (var program in programs)
+        foreach (var program in Enum.GetValues<WasherProgram>())
             foreach (var first in outcomes)
                 foreach (var second in outcomes)
                     yield return new object[] { program, first, second };
@@ -281,12 +280,18 @@ public class JournalIntegrationTests
 
     public static IEnumerable<object[]> GetDryerProgramsWithTwoOutcomes()
     {
-        var programs = Enum.GetValues<DryerProgram>();
         Type[] outcomes = { typeof(CycleOutcome.Completed), typeof(CycleOutcome.Interrupted) };
-        foreach (var program in programs)
+        foreach (var program in Enum.GetValues<DryerProgram>())
             foreach (var first in outcomes)
                 foreach (var second in outcomes)
                     yield return new object[] { program, first, second };
+    }
+
+    public static IEnumerable<object[]> GetWasherDryerProgramCombinations()
+    {
+        foreach (var washerProgram in Enum.GetValues<WasherProgram>())
+            foreach (var dryerProgram in Enum.GetValues<DryerProgram>())
+                yield return new object[] { washerProgram, dryerProgram };
     }
 
     public static IEnumerable<object[]> GetWasherPrograms()
