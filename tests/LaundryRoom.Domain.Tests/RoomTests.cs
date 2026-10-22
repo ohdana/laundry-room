@@ -135,6 +135,76 @@ public class RoomTests
         Assert.True(room.IsPowerOn);
     }
 
+    [Theory]
+    [MemberData(nameof(GetRoomFlatCombinations))]
+    public void Room_WhenAssignedCardInserted_RaisesPowerOnOnce(string label, string owner)
+    {
+        // Arrange
+        var room = new Room(label);
+        var card = GetAssignedCard(owner);
+        var powerOnEventCount = 0;
+        room.PowerOn += () => powerOnEventCount++;
+
+        // Act
+        room.InsertCard(card);
+
+        // Assert
+        Assert.Equal(1, powerOnEventCount);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetRoomLabels))]
+    public void Room_WhenUnassignedCardInserted_DoesNotRaisePowerOn(string label)
+    {
+        // Arrange
+        var room = new Room(label);
+        var card = new Card(Guid.NewGuid());
+        var powerOnEventCount = 0;
+        room.PowerOn += () => powerOnEventCount++;
+
+        // Act
+        room.InsertCard(card);
+
+        // Assert
+        Assert.Equal(0, powerOnEventCount);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetRoomFlatCombinations))]
+    public void Room_WhenAssignedCardEjected_RaisesPowerOffOnce(string label, string owner)
+    {
+        // Arrange
+        var room = new Room(label);
+        var card = GetAssignedCard(owner);
+        room.InsertCard(card);
+        var powerOffEventCount = 0;
+        room.PowerOff += () => powerOffEventCount++;
+
+        // Act
+        room.EjectCard();
+
+        // Assert
+        Assert.Equal(1, powerOffEventCount);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetRoomLabels))]
+    public void Room_WhenUnassignedCardEjected_DoesNotRaisePowerOff(string label)
+    {
+        // Arrange
+        var room = new Room(label);
+        var card = new Card(Guid.NewGuid());
+        room.InsertCard(card);
+        var powerOffEventCount = 0;
+        room.PowerOff += () => powerOffEventCount++;
+
+        // Act
+        room.EjectCard();
+
+        // Assert
+        Assert.Equal(0, powerOffEventCount);
+    }
+
     private Card GetAssignedCard(string owner)
     {
         var card = new Card(Guid.NewGuid());
