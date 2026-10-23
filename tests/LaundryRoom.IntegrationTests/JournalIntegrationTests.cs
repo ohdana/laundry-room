@@ -30,7 +30,7 @@ public class JournalIntegrationTests
         _clock.Advance(program.Duration() / 2);
 
         // Assert
-        Assert.Equal(0, _journal.Entries.Count);
+        Assert.Empty(_journal.Entries);
     }
 
     [Theory]
@@ -115,7 +115,7 @@ public class JournalIntegrationTests
         _clock.Advance(program.Duration() / 2);
 
         // Assert
-        Assert.Equal(0, _journal.Entries.Count);
+        Assert.Empty(_journal.Entries);
     }
 
     [Theory]
