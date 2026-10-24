@@ -13,7 +13,7 @@ public class MeterReadingTests
         var reading = MeterReading.From(value);
 
         // Assert
-        Assert.Equal(value, reading.Kwh);
+        Assert.Equal(value, reading.Total);
     }
 
     [Theory]

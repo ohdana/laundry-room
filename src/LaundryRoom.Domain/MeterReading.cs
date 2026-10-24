@@ -1,6 +1,7 @@
 public sealed record MeterReading
 {
-    public Kwh Kwh { get; }
-    private MeterReading(Kwh kwh) => Kwh = kwh;
-    public static MeterReading From(Kwh kwh) => new MeterReading(kwh);
+    public Kwh Total { get; }
+    private MeterReading(Kwh total) => Total = total;
+    public static MeterReading From(Kwh total) =>
+        new MeterReading(total ?? throw new ArgumentNullException(nameof(total)));
 }
