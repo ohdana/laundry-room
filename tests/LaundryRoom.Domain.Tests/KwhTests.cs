@@ -74,10 +74,10 @@ public class KwhTests
     public void Kwh_WhenSubtractingBiggerFromSmaller_Throws(decimal value1, decimal value2)
     {
         // Arrange
-        // Act
         var kwh1 = Kwh.From(value1);
         var kwh2 = Kwh.From(value2);
 
+        // Act
         // Assert
         Assert.Throws<ArgumentException>(() => kwh1 - kwh2);
     }
