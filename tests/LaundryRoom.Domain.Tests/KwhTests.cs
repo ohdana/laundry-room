@@ -94,7 +94,7 @@ public class KwhTests
     {
         for (int i = 0; i < _validValues.Count; i++)
         {
-            for (int j = i + 1; j < _validValues.Count; j++)
+            for (int j = i; j < _validValues.Count; j++)
             {
                 yield return new object[] { _validValues[j], _validValues[i] };
             }
