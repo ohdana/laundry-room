@@ -19,6 +19,10 @@ Kwh_WhenCreatedWithSameValue_AreEqual
 Kwh_WhenAdding_CreatesNewKwhWithSumValue
 Kwh_WhenComparingTwo_ReturnsSameAsComparingValues
 
+Meter
+MeterReading_WhenCreated_ExposesValue
+MeterReading_WhenCreatedWithSameValue_AreEqual
+
 Room
 Room_WhenCreatedWithEmptyLabel_Throws
 Room_WhenCreated_HasNoPower
