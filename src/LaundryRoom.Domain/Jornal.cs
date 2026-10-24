@@ -10,21 +10,32 @@ public class Journal
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
-    public void Attach(Washer washer)
+    public void Attach(Washer washer, IElectricityMeter meter)
     {
         DateTimeOffset startedAt = default;
+        MeterReading? readingBefore = null;
 
         washer.ProgramStarted      += OnStarted;
         washer.ProgramCompleted    += OnCompleted;
         washer.ProgramInterrupted  += OnInterrupted;
 
-        void OnStarted(WasherProgram p)     => startedAt = _clock.GetUtcNow();
+        void OnStarted(WasherProgram p)
+        {
+            startedAt = _clock.GetUtcNow();
+            readingBefore = meter.Read();
+        }
 
-        void OnCompleted(WasherProgram p)   => 
-            Add(washer.Id, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()));
+        void OnCompleted(WasherProgram p)
+        {
+            var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
+            Add(washer.Id, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
+        }
 
-        void OnInterrupted(WasherProgram p) => 
-            Add(washer.Id, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()));
+        void OnInterrupted(WasherProgram p)
+        {
+            var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
+            Add(washer.Id, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
+        }
     }
 
     public void Attach(Dryer dryer)
@@ -44,9 +55,9 @@ public class Journal
             Add(dryer.Id, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()));
     }
 
-    private void Add(Guid washerId, WasherProgram program, CycleOutcome outcome)
+    private void Add(Guid washerId, WasherProgram program, CycleOutcome outcome, Kwh electricityConsumed)
     {
-        var entry = new JournalEntry.Washer(washerId, program, outcome);
+        var entry = new JournalEntry.Washer(washerId, program, outcome, electricityConsumed);
         _entries.Add(entry);
     }
 
@@ -55,4 +66,6 @@ public class Journal
         var entry = new JournalEntry.Dryer(dryerId, program, outcome);
         _entries.Add(entry);
     }
+
+    private Kwh CalculateElectricityConsumed(MeterReading before, MeterReading after) => after.Total - before.Total;
 }

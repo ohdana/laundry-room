@@ -13,9 +13,11 @@ public class RoomIntegrationTests
     private readonly Flat _owner;
     private readonly Journal _journal;
     private readonly Room _room;
+    private readonly IElectricityMeter _meter = Substitute.For<IElectricityMeter>();
 
     public RoomIntegrationTests()
     {
+        _meter.Read().Returns(Reading(0));
         _journal = new Journal(_clock);
         var roomLabel = "green";
         _room = new Room(roomLabel);
@@ -24,7 +26,7 @@ public class RoomIntegrationTests
         _card.Assign(_owner);
         _washer = new Washer(Guid.NewGuid(), _room, _clock);
         _dryer = new Dryer(Guid.NewGuid(), _room, _clock);
-        _journal.Attach(_washer);
+        _journal.Attach(_washer, _meter);
         _journal.Attach(_dryer);
     }
 
@@ -83,6 +85,8 @@ public class RoomIntegrationTests
         // Assert
         Assert.Empty(_journal.Entries);
     }
+
+    private static MeterReading Reading(decimal value) => MeterReading.From(Kwh.From(value));
 
     public static IEnumerable<object[]> GetWasherDryerProgramCombinations()
     {

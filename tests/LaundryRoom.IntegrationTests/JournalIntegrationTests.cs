@@ -8,12 +8,14 @@ public class JournalIntegrationTests
 
     private readonly FakeTimeProvider _clock = new(Start);
     private readonly IPowerSource _powerSource = Substitute.For<IPowerSource>();
+    private readonly IElectricityMeter _meter = Substitute.For<IElectricityMeter>();
     private readonly Guid _washerId = Guid.NewGuid();
     private readonly Guid _dryerId = Guid.NewGuid();
     private readonly Journal _journal;
     
     public JournalIntegrationTests()
     {
+        _meter.Read().Returns(Reading(0));
         _journal = new Journal(_clock);
     }
 
@@ -255,7 +257,7 @@ public class JournalIntegrationTests
     {
         _powerSource.IsPowerOn.Returns(true);
         var washer = new Washer(_washerId, _powerSource, _clock);
-        _journal.Attach(washer);
+        _journal.Attach(washer, _meter);
         washer.SwitchOn();
         return washer;
     }
@@ -268,6 +270,8 @@ public class JournalIntegrationTests
         dryer.SwitchOn();
         return dryer;
     }
+
+    private static MeterReading Reading(decimal value) => MeterReading.From(Kwh.From(value));
 
     public static IEnumerable<object[]> GetWasherProgramsWithTwoOutcomes()
     {

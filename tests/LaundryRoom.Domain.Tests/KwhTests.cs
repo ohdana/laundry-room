@@ -53,6 +53,21 @@ public class KwhTests
         // Assert
         Assert.Equal(value1 + value2, kwhSum.Value);
     }
+
+    [Theory]
+    [MemberData(nameof(GetValidSubtractionCombinations))]
+    public void Kwh_WhenSubtracting_CreatesNewKwhWithDiffValue(decimal value1, decimal value2)
+    {
+        // Arrange
+        var kwh1 = Kwh.From(value1);
+        var kwh2 = Kwh.From(value2);
+
+        // Act
+        var kwhDiff = kwh1 - kwh2;
+
+        // Assert
+        Assert.Equal(value1 - value2, kwhDiff.Value);
+    }
     
     [Theory]
     [MemberData(nameof(GetValidValueCombinations))]
@@ -73,6 +88,17 @@ public class KwhTests
         Assert.Equal(value1 > value2, isGreater);
         Assert.Equal(value1 <= value2, isLessOrEqual);
         Assert.Equal(value1 >= value2, isGreaterOrEqual);
+    }
+
+    public static IEnumerable<object[]> GetValidSubtractionCombinations()
+    {
+        for (int i = 0; i < _validValues.Count; i++)
+        {
+            for (int j = i + 1; j < _validValues.Count; j++)
+            {
+                yield return new object[] { _validValues[j], _validValues[i] };
+            }
+        }
     }
 
     public static IEnumerable<object[]> GetValidValueCombinations()

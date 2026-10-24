@@ -9,6 +9,7 @@ public sealed record Kwh
                   : new Kwh(value);
 
     public static Kwh operator +(Kwh left, Kwh right) => From(left.Value + right.Value);
+    public static Kwh operator -(Kwh left, Kwh right) => From(left.Value - right.Value);
 
     public static bool operator <(Kwh left, Kwh right)  => left.Value < right.Value;
     public static bool operator >(Kwh left, Kwh right)  => left.Value > right.Value;
