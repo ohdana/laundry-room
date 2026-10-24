@@ -56,7 +56,7 @@ public class KwhTests
 
     [Theory]
     [MemberData(nameof(GetValidSubtractionCombinations))]
-    public void Kwh_WhenSubtracting_CreatesNewKwhWithDiffValue(decimal value1, decimal value2)
+    public void Kwh_WhenSubtractingSmallerFromBigger_CreatesNewKwhWithDiffValue(decimal value1, decimal value2)
     {
         // Arrange
         var kwh1 = Kwh.From(value1);
@@ -67,6 +67,19 @@ public class KwhTests
 
         // Assert
         Assert.Equal(value1 - value2, kwhDiff.Value);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetInvalidSubtractionCombinations))]
+    public void Kwh_WhenSubtractingBiggerFromSmaller_Throws(decimal value1, decimal value2)
+    {
+        // Arrange
+        // Act
+        var kwh1 = Kwh.From(value1);
+        var kwh2 = Kwh.From(value2);
+
+        // Assert
+        Assert.Throws<ArgumentException>(() => kwh1 - kwh2);
     }
     
     [Theory]
@@ -88,6 +101,17 @@ public class KwhTests
         Assert.Equal(value1 > value2, isGreater);
         Assert.Equal(value1 <= value2, isLessOrEqual);
         Assert.Equal(value1 >= value2, isGreaterOrEqual);
+    }
+
+    public static IEnumerable<object[]> GetInvalidSubtractionCombinations()
+    {
+        for (int i = 0; i < _validValues.Count; i++)
+        {
+            for (int j = i + 1; j < _validValues.Count; j++)
+            {
+                yield return new object[] { _validValues[i], _validValues[j] };
+            }
+        }
     }
 
     public static IEnumerable<object[]> GetValidSubtractionCombinations()
