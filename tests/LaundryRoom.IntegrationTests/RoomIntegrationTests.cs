@@ -10,7 +10,9 @@ public class RoomIntegrationTests
     private readonly Washer _washer;
     private readonly Dryer _dryer;
     private readonly Card _card;
+    private readonly Card _anotherCard;
     private readonly Flat _owner;
+    private readonly Flat _anotherOwner;
     private readonly Journal _journal;
     private readonly Room _room;
     private readonly IElectricityMeter _meter = Substitute.For<IElectricityMeter>();
@@ -22,11 +24,14 @@ public class RoomIntegrationTests
         var roomLabel = "green";
         _room = new Room(roomLabel);
         _owner = Flat.From("3B");
+        _anotherOwner = Flat.From("2d");
         _card = new Card(Guid.NewGuid());
         _card.Assign(_owner);
+        _anotherCard = new Card(Guid.NewGuid());
+        _anotherCard.Assign(_anotherOwner);
         _washer = new Washer(Guid.NewGuid(), _room, _clock);
         _dryer = new Dryer(Guid.NewGuid(), _room, _clock);
-        _journal.Attach(_washer, _meter);
+        _journal.Attach(_washer, _meter, _room);
         _journal.Attach(_dryer, _meter);
     }
 
@@ -86,12 +91,75 @@ public class RoomIntegrationTests
         Assert.Empty(_journal.Entries);
     }
 
+    [Theory]
+    [MemberData(nameof(GetWasherProgramWithOutcome))]
+    public void Room_WhenWasherCycleEnded_YieldsEntryWithCardOwner(WasherProgram washerProgram, Type outcome)
+    {
+        // Arrange
+        _room.InsertCard(_card);
+        _washer.SwitchOn();
+
+        // Act
+        RunWasherCycleWithOutcome(_washer, washerProgram, outcome);
+
+        // Assert
+        var washerEntry = _journal.Entries.OfType<JournalEntry.Washer>().Single();
+        Assert.Equal(_card.Owner, washerEntry.CardOwner);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetWasherPrograms))]
+    public void Room_WhenTwoOwnersRunTwoWasherCycles_YieldsTwoEntries(WasherProgram washerProgram)
+    {
+        // Arrange
+        // Act
+        _room.InsertCard(_card);
+        _washer.SwitchOn();
+        RunWasherCycleWithOutcome(_washer, washerProgram, typeof(CycleOutcome.Interrupted));
+
+        _room.InsertCard(_anotherCard);
+        _washer.SwitchOn();
+        RunWasherCycleWithOutcome(_washer, washerProgram, typeof(CycleOutcome.Completed));
+
+        // Assert
+        Assert.Equal(2, _journal.Entries.Count);
+        var washerEntry1 = Assert.IsType<JournalEntry.Washer>(_journal.Entries[0]);
+        var washerEntry2 = Assert.IsType<JournalEntry.Washer>(_journal.Entries[1]);
+        Assert.Equal(_owner, washerEntry1.CardOwner);
+        Assert.Equal(_anotherOwner, washerEntry2.CardOwner);
+    }
+
     private static MeterReading Reading(decimal value) => MeterReading.From(Kwh.From(value));
+
+    private void RunWasherCycleWithOutcome(Washer washer, WasherProgram program, Type outcome)
+    {
+        washer.StartProgram(program);
+        _clock.Advance(program.Duration() / 2);
+        if (outcome == typeof(CycleOutcome.Completed)) _clock.Advance(program.Duration() / 2);
+        else
+        {
+            _room.EjectCard();
+        }
+    }
+
+    public static IEnumerable<object[]> GetWasherProgramWithOutcome()
+    {
+        Type[] outcomes = { typeof(CycleOutcome.Completed), typeof(CycleOutcome.Interrupted) };
+        foreach (var program in Enum.GetValues<WasherProgram>())
+            foreach (var outcome in outcomes)
+                yield return new object[] { program, outcome };
+    }
 
     public static IEnumerable<object[]> GetWasherDryerProgramCombinations()
     {
         foreach (var washerProgram in Enum.GetValues<WasherProgram>())
             foreach (var dryerProgram in Enum.GetValues<DryerProgram>())
                 yield return new object[] { washerProgram, dryerProgram };
+    }
+
+    public static IEnumerable<object[]> GetWasherPrograms()
+    {
+        foreach (var program in Enum.GetValues<WasherProgram>())
+            yield return new object[] { program };
     }
 }

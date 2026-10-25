@@ -10,10 +10,12 @@ public class Journal
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
-    public void Attach(Washer washer, IElectricityMeter meter)
+    public void Attach(Washer washer, IElectricityMeter meter, Room room)
     {
         DateTimeOffset startedAt = default;
         MeterReading? readingBefore = null;
+        string roomLabel = string.Empty;
+        Flat? cardOwner = null;
 
         washer.ProgramStarted      += OnStarted;
         washer.ProgramCompleted    += OnCompleted;
@@ -23,18 +25,20 @@ public class Journal
         {
             startedAt = _clock.GetUtcNow();
             readingBefore = meter.Read();
+            roomLabel = room.Label;
+            cardOwner = room.CardOwner;
         }
 
         void OnCompleted(WasherProgram p)
         {
             var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
-            Add(washer.Id, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
+            Add(washer.Id, roomLabel, cardOwner, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
         }
 
         void OnInterrupted(WasherProgram p)
         {
             var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
-            Add(washer.Id, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
+            Add(washer.Id, roomLabel, cardOwner, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
         }
     }
 
@@ -66,9 +70,9 @@ public class Journal
         }
     }
 
-    private void Add(Guid washerId, WasherProgram program, CycleOutcome outcome, Kwh electricityConsumed)
+    private void Add(Guid washerId, string roomLabel, Flat cardOwner, WasherProgram program, CycleOutcome outcome, Kwh electricityConsumed)
     {
-        var entry = new JournalEntry.Washer(washerId, program, outcome, electricityConsumed);
+        var entry = new JournalEntry.Washer(washerId, roomLabel, cardOwner, program, outcome, electricityConsumed);
         _entries.Add(entry);
     }
 

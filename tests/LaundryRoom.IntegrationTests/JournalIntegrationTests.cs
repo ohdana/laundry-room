@@ -278,9 +278,6 @@ public class JournalIntegrationTests
         Assert.Equal(expectedElectricityConsumed2, washerEntry2.ElectricityConsumed);
     }
 
-
-
-
     [Theory]
     [MemberData(nameof(GetDryerProgramWithOutcome))]
     public void Journal_WhenDryerCycleEnded_CalculatesEnergyUsed(DryerProgram dryerProgram, Type outcome)
@@ -358,7 +355,7 @@ public class JournalIntegrationTests
     {
         _powerSource.IsPowerOn.Returns(true);
         var washer = new Washer(_washerId, _powerSource, _clock);
-        _journal.Attach(washer, _meter);
+        _journal.Attach(washer, _meter, new Room("Green"));
         washer.SwitchOn();
         return washer;
     }
