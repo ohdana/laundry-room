@@ -38,21 +38,32 @@ public class Journal
         }
     }
 
-    public void Attach(Dryer dryer)
+    public void Attach(Dryer dryer, IElectricityMeter meter)
     {
         DateTimeOffset startedAt = default;
+        MeterReading? readingBefore = null;
 
         dryer.ProgramStarted      += OnStarted;
         dryer.ProgramCompleted    += OnCompleted;
         dryer.ProgramInterrupted  += OnInterrupted;
 
-        void OnStarted(DryerProgram p)     => startedAt = _clock.GetUtcNow();
+        void OnStarted(DryerProgram p)
+        {
+            startedAt = _clock.GetUtcNow();
+            readingBefore = meter.Read();
+        }
 
-        void OnCompleted(DryerProgram p)   => 
-            Add(dryer.Id, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()));
+        void OnCompleted(DryerProgram p)
+        {
+            var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
+            Add(dryer.Id, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
+        }
 
-        void OnInterrupted(DryerProgram p) => 
-            Add(dryer.Id, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()));
+        void OnInterrupted(DryerProgram p)
+        {
+            var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
+            Add(dryer.Id, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
+        }
     }
 
     private void Add(Guid washerId, WasherProgram program, CycleOutcome outcome, Kwh electricityConsumed)
@@ -61,9 +72,9 @@ public class Journal
         _entries.Add(entry);
     }
 
-    private void Add(Guid dryerId, DryerProgram program, CycleOutcome outcome)
+    private void Add(Guid dryerId, DryerProgram program, CycleOutcome outcome, Kwh electricityConsumed)
     {
-        var entry = new JournalEntry.Dryer(dryerId, program, outcome);
+        var entry = new JournalEntry.Dryer(dryerId, program, outcome, electricityConsumed);
         _entries.Add(entry);
     }
 

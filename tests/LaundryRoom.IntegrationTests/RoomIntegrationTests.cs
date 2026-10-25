@@ -27,7 +27,7 @@ public class RoomIntegrationTests
         _washer = new Washer(Guid.NewGuid(), _room, _clock);
         _dryer = new Dryer(Guid.NewGuid(), _room, _clock);
         _journal.Attach(_washer, _meter);
-        _journal.Attach(_dryer);
+        _journal.Attach(_dryer, _meter);
     }
 
     [Theory]
