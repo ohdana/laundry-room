@@ -278,6 +278,58 @@ public class JournalIntegrationTests
         Assert.Equal(expectedElectricityConsumed2, washerEntry2.ElectricityConsumed);
     }
 
+
+
+
+    [Theory]
+    [MemberData(nameof(GetDryerProgramWithOutcome))]
+    public void Journal_WhenDryerCycleEnded_CalculatesEnergyUsed(DryerProgram dryerProgram, Type outcome)
+    {
+        // Arrange
+        var dryer = GetAttachedPoweredDryer();
+        var kwhBefore = Kwh.From(1.1m);
+        var kwhAfter = Kwh.From(5.3m);
+        var expectedElectricityConsumed = kwhAfter - kwhBefore;
+        _meter.Read().Returns(MeterReading.From(kwhBefore), MeterReading.From(kwhAfter));
+
+        // Act
+        RunDryerCycleWithOutcome(dryer, dryerProgram, outcome);
+
+        // Assert
+        var dryerEntry = Assert.IsType<JournalEntry.Dryer>(_journal.Entries[0]);
+        Assert.Equal(_dryerId, dryerEntry.DryerId);
+        Assert.Equal(expectedElectricityConsumed, dryerEntry.ElectricityConsumed);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetDryerProgramsWithTwoOutcomes))]
+    public void Journal_WhenTwoDryerCyclesEnded_CalculatesEnergyUsed(
+        DryerProgram dryerProgram, Type outcome1, Type outcome2)
+    {
+        // Arrange
+        var dryer = GetAttachedPoweredDryer();
+        var kwhBefore1 = Kwh.From(1.1m);
+        var kwhAfter1 = Kwh.From(5.3m);
+        var kwhBefore2 = Kwh.From(8.4m);
+        var kwhAfter2 = Kwh.From(11.2m);
+        var expectedElectricityConsumed1 = kwhAfter1 - kwhBefore1;
+        var expectedElectricityConsumed2 = kwhAfter2 - kwhBefore2;
+        _meter.Read().Returns(
+            MeterReading.From(kwhBefore1), MeterReading.From(kwhAfter1),
+            MeterReading.From(kwhBefore2), MeterReading.From(kwhAfter2));
+
+        // Act
+        RunDryerCycleWithOutcome(dryer, dryerProgram, outcome1);
+        RunDryerCycleWithOutcome(dryer, dryerProgram, outcome2);
+
+        // Assert
+        Assert.Equal(2, _journal.Entries.Count);
+        var dryerEntry1 = Assert.IsType<JournalEntry.Dryer>(_journal.Entries[0]);
+        var dryerEntry2 = Assert.IsType<JournalEntry.Dryer>(_journal.Entries[1]);
+        Assert.Equal(expectedElectricityConsumed1, dryerEntry1.ElectricityConsumed);
+        Assert.Equal(expectedElectricityConsumed2, dryerEntry2.ElectricityConsumed);
+    }
+
     private void RunWasherCycleWithOutcome(Washer washer, WasherProgram program, Type outcome)
     {
         washer.StartProgram(program);
@@ -326,6 +378,14 @@ public class JournalIntegrationTests
     {
         Type[] outcomes = { typeof(CycleOutcome.Completed), typeof(CycleOutcome.Interrupted) };
         foreach (var program in Enum.GetValues<WasherProgram>())
+            foreach (var outcome in outcomes)
+                yield return new object[] { program, outcome };
+    }
+
+    public static IEnumerable<object[]> GetDryerProgramWithOutcome()
+    {
+        Type[] outcomes = { typeof(CycleOutcome.Completed), typeof(CycleOutcome.Interrupted) };
+        foreach (var program in Enum.GetValues<DryerProgram>())
             foreach (var outcome in outcomes)
                 yield return new object[] { program, outcome };
     }
