@@ -42,10 +42,12 @@ public class Journal
         }
     }
 
-    public void Attach(Dryer dryer, IElectricityMeter meter)
+    public void Attach(Dryer dryer, IElectricityMeter meter, Room room)
     {
         DateTimeOffset startedAt = default;
         MeterReading? readingBefore = null;
+        string roomLabel = string.Empty;
+        Flat? cardOwner = null;
 
         dryer.ProgramStarted      += OnStarted;
         dryer.ProgramCompleted    += OnCompleted;
@@ -55,18 +57,20 @@ public class Journal
         {
             startedAt = _clock.GetUtcNow();
             readingBefore = meter.Read();
+            roomLabel = room.Label;
+            cardOwner = room.CardOwner;
         }
 
         void OnCompleted(DryerProgram p)
         {
             var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
-            Add(dryer.Id, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
+            Add(dryer.Id, roomLabel, cardOwner, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
         }
 
         void OnInterrupted(DryerProgram p)
         {
             var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
-            Add(dryer.Id, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
+            Add(dryer.Id, roomLabel, cardOwner, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
         }
     }
 
@@ -76,9 +80,9 @@ public class Journal
         _entries.Add(entry);
     }
 
-    private void Add(Guid dryerId, DryerProgram program, CycleOutcome outcome, Kwh electricityConsumed)
+    private void Add(Guid dryerId, string roomLabel, Flat cardOwner, DryerProgram program, CycleOutcome outcome, Kwh electricityConsumed)
     {
-        var entry = new JournalEntry.Dryer(dryerId, program, outcome, electricityConsumed);
+        var entry = new JournalEntry.Dryer(dryerId, roomLabel, cardOwner, program, outcome, electricityConsumed);
         _entries.Add(entry);
     }
 

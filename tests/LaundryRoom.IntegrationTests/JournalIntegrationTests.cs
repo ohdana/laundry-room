@@ -364,7 +364,7 @@ public class JournalIntegrationTests
     {
         _powerSource.IsPowerOn.Returns(true);
         var dryer = new Dryer(_dryerId, _powerSource, _clock);
-        _journal.Attach(dryer, _meter);
+        _journal.Attach(dryer, _meter, new Room("Green"));
         dryer.SwitchOn();
         return dryer;
     }
