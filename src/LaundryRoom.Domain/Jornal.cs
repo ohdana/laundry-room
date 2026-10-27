@@ -31,14 +31,14 @@ public class Journal
 
         void OnCompleted(WasherProgram p)
         {
-            var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
-            Add(washer.Id, roomLabel, cardOwner, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
+            var electricityConsumed = CalculateElectricityConsumed(readingBefore!, meter.Read());
+            Add(washer.Id, roomLabel, cardOwner!, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
         }
 
         void OnInterrupted(WasherProgram p)
         {
-            var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
-            Add(washer.Id, roomLabel, cardOwner, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
+            var electricityConsumed = CalculateElectricityConsumed(readingBefore!, meter.Read());
+            Add(washer.Id, roomLabel, cardOwner!, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
         }
     }
 
@@ -63,14 +63,14 @@ public class Journal
 
         void OnCompleted(DryerProgram p)
         {
-            var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
-            Add(dryer.Id, roomLabel, cardOwner, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
+            var electricityConsumed = CalculateElectricityConsumed(readingBefore!, meter.Read());
+            Add(dryer.Id, roomLabel, cardOwner!, p, new CycleOutcome.Completed(startedAt, _clock.GetUtcNow()), electricityConsumed);
         }
 
         void OnInterrupted(DryerProgram p)
         {
-            var electricityConsumed = CalculateElectricityConsumed(readingBefore, meter.Read());
-            Add(dryer.Id, roomLabel, cardOwner, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
+            var electricityConsumed = CalculateElectricityConsumed(readingBefore!, meter.Read());
+            Add(dryer.Id, roomLabel, cardOwner!, p, new CycleOutcome.Interrupted(startedAt, _clock.GetUtcNow()), electricityConsumed);
         }
     }
 
