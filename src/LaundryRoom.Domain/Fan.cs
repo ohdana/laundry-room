@@ -2,7 +2,7 @@ public class Fan
 {
     public Guid Id { get; }
     public bool IsOn => State != new FanState.Off();
-    public FanState State { get; private set; } = new FanState.Idle();
+    public FanState State { get; private set; }
 
     private readonly IPowerSource _powerSource;
     private FanProgram _selectedProgram;
@@ -15,32 +15,28 @@ public class Fan
 
         Id = id;
         _powerSource = powerSource;
-        State = _powerSource.IsPowerOn ? new FanState.Idle() : new FanState.Off();
+        State = new FanState.Off();
         _selectedProgram = FanProgram.Normal;
-        _lastRecordedState = new FanState.Idle();
+        _lastRecordedState = State;
 
         _powerSource.PowerOff += OnPowerOff;
         _powerSource.PowerOn += OnPowerOn;
     }
 
-    public void Start()
+    public void SwitchOn() => State = new FanState.Running(_selectedProgram);
+
+    public void SwitchOff() => State = new FanState.Off();
+
+    public void SelectProgram(FanProgram program)
     {
-        if (State is FanState.Off) throw new InvalidOperationException("The power is off. Can't start the fan without power.");
-        if (State is FanState.Running) throw new InvalidOperationException("To start a new program, stop the current program first.");
-        
+        _selectedProgram = program;
         State = new FanState.Running(_selectedProgram);
     }
-
-    public void Stop()
-    {
-        if (State is not FanState.Off) State = new FanState.Idle();
-    }
-
-    public void SelectProgram(FanProgram program) => _selectedProgram = program;
 
     private void OnPowerOn()
     {
         if (State is not FanState.Off) return;
+        if (_lastRecordedState is FanState.Off) return;
         State = _lastRecordedState;
     }
 

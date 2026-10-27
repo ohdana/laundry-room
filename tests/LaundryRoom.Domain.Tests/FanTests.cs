@@ -18,7 +18,7 @@ public class FanTests
     }
 
     [Fact]
-    public void Fan_WhenCreatedWithInalidId_Throws()
+    public void Fan_WhenCreatedWithInvalidId_Throws()
     {
         // Arrange
         // Act
@@ -36,26 +36,39 @@ public class FanTests
     }
 
     [Fact]
-    public void Fan_WhenPowered_IsOn()
+    public void Fan_WhenPoweredAndSwitchedOn_IsOn()
+    {
+        // Arrange
+        var fan = GetPoweredFan();
+
+        // Act
+        fan.SwitchOn();
+
+        // Assert
+        Assert.True(fan.IsOn);
+    }
+
+    [Fact]
+    public void Fan_WhenPoweredAndNotSwitchedOn_IsOff()
     {
         // Arrange
         // Act
         var fan = GetPoweredFan();
 
         // Assert
-        Assert.True(fan.IsOn);
+        Assert.False(fan.IsOn);
     }
 
     [Theory]
     [MemberData(nameof(GetPrograms))]
-    public void Fan_WhenOnAndStartCalled_IsRunning(FanProgram program)
+    public void Fan_WhenSwitchedOn_IsRunning(FanProgram program)
     {
         // Arrange
         var fan = GetPoweredFan();
-        fan.SelectProgram(program);
 
         // Act
-        fan.Start();
+        fan.SwitchOn();
+        fan.SelectProgram(program);
 
         // Assert
         var running = Assert.IsType<FanState.Running>(fan.State);
@@ -63,83 +76,60 @@ public class FanTests
     }
 
     [Fact]
-    public void Fan_WhenOffAndStartCalled_Throws()
-    {
-        // Arrange
-        var fan = new Fan(Guid.NewGuid(), _powerSource);
-        SwitchPowerOff();
-
-        // Act
-        // Assert
-        Assert.Throws<InvalidOperationException>(() => fan.Start());
-    }
-
-    [Fact]
-    public void Fan_WhenPowerLostAndStartCalled_Throws()
+    public void Fan_WhenOnAndSwitchOffCalled_IsOff()
     {
         // Arrange
         var fan = GetPoweredFan();
+        fan.SwitchOn();
 
         // Act
-        SwitchPowerOff();
+        fan.SwitchOff();
 
         // Assert
-        Assert.Throws<InvalidOperationException>(() => fan.Start());
+        Assert.IsType<FanState.Off>(fan.State);
     }
-    
+
     [Theory]
-    [MemberData(nameof(GetPrograms))]
-    public void Fan_WhenRunningAndStartCalled_Throws(FanProgram program)
+    [MemberData(nameof(GetProgramCombinations))]
+    public void Fan_WhenRunningAndNewProgramSelected_RunsNewProgram(FanProgram program1, FanProgram program2)
     {
         // Arrange
         var fan = GetPoweredFan();
-        fan.SelectProgram(program);
-        fan.Start();
+        fan.SwitchOn();
+        fan.SelectProgram(program1);
 
         // Act
-        // Assert
-        Assert.Throws<InvalidOperationException>(() => fan.Start());
-    }
-
-    [Fact]
-    public void Fan_WhenOnAndStopCalled_IsIdle()
-    {
-        // Arrange
-        var fan = GetPoweredFan();
-
-        // Act
-        fan.Stop();
+        fan.SelectProgram(program2);
 
         // Assert
-        Assert.IsType<FanState.Idle>(fan.State);
+        var running = Assert.IsType<FanState.Running>(fan.State);
+        Assert.Equal(program2, running.Program);
     }
 
     [Theory]
     [MemberData(nameof(GetPrograms))]
-    public void Fan_WhenRunningAndStopCalled_IsIdle(FanProgram program)
+    public void Fan_WhenRunningAndSwitchOffCalled_IsOff(FanProgram program)
     {
-
         // Arrange
         var fan = GetPoweredFan();
+        fan.SwitchOn();
         fan.SelectProgram(program);
-        fan.Start();
 
         // Act
-        fan.Stop();
+        fan.SwitchOff();
 
         // Assert
-        Assert.IsType<FanState.Idle>(fan.State);
+        Assert.IsType<FanState.Off>(fan.State);
     }
 
     [Theory]
     [MemberData(nameof(GetPrograms))]
     public void Fan_WhenRunningAndPowerLost_IsOff(FanProgram program)
     {
-
         // Arrange
         var fan = GetPoweredFan();
+        fan.SwitchOn();
         fan.SelectProgram(program);
-        fan.Start();
 
         // Act
         SwitchPowerOff();
@@ -148,30 +138,14 @@ public class FanTests
         Assert.False(fan.IsOn);
     }
 
-    [Fact]
-    public void Fan_WhenIdleAndPowerLostAndBackOn_IsIdle()
-    {
-        // Arrange
-        var fan = GetPoweredFan();
-        fan.Start();
-        fan.Stop();
-        SwitchPowerOff();
-
-        // Act
-        SwitchPowerOn();
-
-        // Assert
-        Assert.IsType<FanState.Idle>(fan.State);
-    }
-
     [Theory]
     [MemberData(nameof(GetPrograms))]
     public void Fan_WhenRunningAndPowerLostAndBackOn_IsRunning(FanProgram program)
     {
         // Arrange
         var fan = GetPoweredFan();
+        fan.SwitchOn();
         fan.SelectProgram(program);
-        fan.Start();
         SwitchPowerOff();
 
         // Act
@@ -183,10 +157,26 @@ public class FanTests
         Assert.Equal(program, running.Program);
     }
 
+    [Fact]
+    public void Fan_WhenSwitchedOffThenPowerLostAndBackOn_IsOff()
+    {
+        // Arrange
+        var fan = GetPoweredFan();
+        fan.SwitchOn();
+        fan.SwitchOff();
+
+        // Act
+        SwitchPowerOff();
+        SwitchPowerOn();
+
+        // Assert
+        Assert.False(fan.IsOn);
+    }
+
     private Fan GetPoweredFan()
     {
-        var fan = new Fan(Guid.NewGuid(), _powerSource);
         SwitchPowerOn();
+        var fan = new Fan(Guid.NewGuid(), _powerSource);
 
         return fan;
     }
@@ -210,5 +200,16 @@ public class FanTests
         {
             yield return new object[] { programs[i] };
         }
+    }
+
+    public static IEnumerable<object[]> GetProgramCombinations()
+    {
+        var programs = Enum.GetValues<FanProgram>();
+        foreach (var program1 in programs)
+            foreach (var program2 in programs)
+            {
+                if (program1 == program2) continue;
+                yield return new object[] { program1, program2 };
+            }
     }
 }
