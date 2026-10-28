@@ -3,6 +3,8 @@ public class Fan
     public Guid Id { get; }
     public bool IsOn => State != new FanState.Off();
     public FanState State { get; private set; }
+    public event Action<FanProgram>? FanStarted;
+    public event Action? FanStopped;
 
     private readonly IPowerSource _powerSource;
     private FanProgram _selectedProgram;
@@ -23,9 +25,20 @@ public class Fan
         _powerSource.PowerOn += OnPowerOn;
     }
 
-    public void SwitchOn() => State = new FanState.Running(_selectedProgram);
+    public void SwitchOn()
+    {
+        if (!_powerSource.IsPowerOn) return;
+        var wasRunning = State is FanState.Running;
+        State = new FanState.Running(_selectedProgram);
+        if (!wasRunning) FanStarted?.Invoke(_selectedProgram);
+    }
 
-    public void SwitchOff() => State = new FanState.Off();
+    public void SwitchOff()
+    {
+        var wasOff = State is FanState.Off;
+        State = new FanState.Off();
+        if (!wasOff) FanStopped?.Invoke();
+    }
 
     public void SelectProgram(FanProgram program)
     {
@@ -38,12 +51,13 @@ public class Fan
         if (State is not FanState.Off) return;
         if (_lastRecordedState is FanState.Off) return;
         State = _lastRecordedState;
+        if (_lastRecordedState is FanState.Running) FanStarted?.Invoke(_selectedProgram);
     }
 
     private void OnPowerOff()
     {
-        if (State is FanState.Off) return;
         _lastRecordedState = State;
         State = new FanState.Off();
+        if (_lastRecordedState is FanState.Running) FanStopped?.Invoke();
     }
 }
