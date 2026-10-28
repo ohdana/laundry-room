@@ -179,7 +179,7 @@ public class FanTests
         // Arrange
         var started = new List<FanProgram>();
         var fan = GetPoweredFan();
-        fan.FanStarted += p => started.Add(p);
+        fan.Started += p => started.Add(p);
 
         // Act
         fan.SwitchOn();
@@ -194,7 +194,7 @@ public class FanTests
         // Arrange
         var started = new List<FanProgram>();
         var fan = GetPoweredFan();
-        fan.FanStarted += p => started.Add(p);
+        fan.Started += p => started.Add(p);
         SwitchPowerOff();
 
         // Act
@@ -211,7 +211,7 @@ public class FanTests
         var started = new List<FanProgram>();
         var fan = GetPoweredFan();
         fan.SwitchOn();
-        fan.FanStarted += p => started.Add(p);
+        fan.Started += p => started.Add(p);
 
         // Act
         fan.SwitchOn();
@@ -223,16 +223,16 @@ public class FanTests
     [Fact]
     public void Fan_WhenOnAndSwitchOffCalled_ReportsStopped()
     {
-        var stopped = 0;
+        var stopped = new List<FanProgram>();
         var fan = GetPoweredFan();
-        fan.FanStopped += () => stopped++;
+        fan.Stopped += p => stopped.Add(p);
         fan.SwitchOn();
 
         // Act
         fan.SwitchOff();
         
         // Assert
-        Assert.Equal(1, stopped);
+        Assert.Single(stopped);
     }
 
     [Theory]
@@ -240,17 +240,17 @@ public class FanTests
     public void Fan_WhenRunningAndPowerLost_ReportsStopped(FanProgram program)
     {
         // Arrange
-        var stopped = 0;
+        var stopped = new List<FanProgram>();
         var fan = GetPoweredFan();
-        fan.FanStopped += () => stopped++;
         fan.SwitchOn();
         fan.SelectProgram(program);
+        fan.Stopped += p => stopped.Add(p);
 
         // Act
         SwitchPowerOff();
 
         // Assert
-        Assert.Equal(1, stopped);
+        Assert.Single(stopped);
     }
 
     [Theory]
@@ -262,7 +262,7 @@ public class FanTests
         var fan = GetPoweredFan();
         fan.SwitchOn();
         fan.SelectProgram(program);
-        fan.FanStarted += p => started.Add(p);
+        fan.Started += p => started.Add(p);
 
         // Act
         SwitchPowerOff();
@@ -276,13 +276,13 @@ public class FanTests
     public void Fan_WhenSwitchedOffThenPowerLostAndBackOn_DoesNotReportStartedOrStopped()
     {
         // Arrange
-        var stopped = 0;
+        var stopped = new List<FanProgram>();
         var started = new List<FanProgram>();
         var fan = GetPoweredFan();
         fan.SwitchOn();
         fan.SwitchOff();
-        fan.FanStarted += p => started.Add(p);
-        fan.FanStopped += () => stopped++;
+        fan.Started += p => started.Add(p);
+        fan.Stopped += p => stopped.Add(p);
 
         // Act
         SwitchPowerOff();
@@ -290,7 +290,67 @@ public class FanTests
 
         // Assert
         Assert.Empty(started);
-        Assert.Equal(0, stopped);
+        Assert.Empty(stopped);
+    }
+
+    [Fact]
+    public void Fan_WhenOffAndSelectedNewProgram_DoesNotReportStartedOrStopped()
+    {
+        // Arrange
+        var stopped = new List<FanProgram>();
+        var started = new List<FanProgram>();
+        var fan = GetPoweredFan();
+        fan.Started += p => started.Add(p);
+        fan.Stopped += p => stopped.Add(p);
+
+        // Act
+        fan.SwitchOff();
+
+        // Assert
+        Assert.Empty(started);
+        Assert.Empty(stopped);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetPrograms))]
+    public void Fan_WhenRunningAndSelectedSameProgram_DoesNotReportStartedOrStopped(FanProgram program)
+    {
+        // Arrange
+        var stopped = new List<FanProgram>();
+        var started = new List<FanProgram>();
+        var fan = GetPoweredFan();
+        fan.SwitchOn();
+        fan.SelectProgram(program);
+        fan.Started += p => started.Add(p);
+        fan.Stopped += p => stopped.Add(p);
+
+        // Act
+        fan.SelectProgram(program);
+
+        // Assert
+        Assert.Empty(started);
+        Assert.Empty(stopped);
+    }
+
+    [Theory]
+    [MemberData(nameof(GetProgramCombinations))]
+    public void Fan_WhenRunningAndSelectedNewProgram_ReportStoppedOldStartedNew(FanProgram program1, FanProgram program2)
+    {
+        // Arrange
+        var stopped = new List<FanProgram>();
+        var started = new List<FanProgram>();
+        var fan = GetPoweredFan();
+        fan.SwitchOn();
+        fan.SelectProgram(program1);
+        fan.Started += p => started.Add(p);
+        fan.Stopped += p => stopped.Add(p);
+
+        // Act
+        fan.SelectProgram(program2);
+
+        // Assert
+        Assert.Equal(program1, Assert.Single(stopped));
+        Assert.Equal(program2, Assert.Single(started));
     }
 
     private Fan GetPoweredFan()
