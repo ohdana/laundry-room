@@ -5,12 +5,14 @@ using Microsoft.Extensions.Time.Testing;
 public class JournalIntegrationTests
 {
     private static readonly DateTimeOffset Start = new(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly FanProgram _defaultProgram = FanProgram.Normal;
 
     private readonly FakeTimeProvider _clock = new(Start);
     private readonly IPowerSource _powerSource = Substitute.For<IPowerSource>();
     private readonly IElectricityMeter _meter = Substitute.For<IElectricityMeter>();
     private readonly Guid _washerId = Guid.NewGuid();
     private readonly Guid _dryerId = Guid.NewGuid();
+    private readonly Guid _fanId = Guid.NewGuid();
     private readonly Journal _journal;
     
     public JournalIntegrationTests()
@@ -327,6 +329,102 @@ public class JournalIntegrationTests
         Assert.Equal(expectedElectricityConsumed2, dryerEntry2.ElectricityConsumed);
     }
 
+    [Fact]
+    public void Journal_WhenAttachedToFanAndFanStarted_YieldsNoEntry()
+    {
+        // Arrange
+        // Act
+        var fan = GetAttachedPoweredFan();
+
+        // Assert
+        Assert.Empty(_journal.Entries);
+    }
+
+    [Fact]
+    public void Journal_WhenAttachedToFanRunningAndFanStopped_YieldsSingleEntry()
+    {
+        // Arrange
+        var fan = GetAttachedPoweredFan();
+
+        // Act
+        fan.SwitchOff();
+
+        // Assert
+        var entry = Assert.IsType<JournalEntry.Fan>(Assert.Single(_journal.Entries));
+    }
+
+    [Fact]
+    public void Journal_WhenAttachedToFanRunningAndPowerLost_YieldsSingleEntry()
+    {
+        // Arrange
+        var fan = GetAttachedPoweredFan();
+
+        // Act
+        SwitchPowerOff();
+
+        // Assert
+        Assert.Single(_journal.Entries);
+    }
+
+    [Fact]
+    public void Journal_WhenAttachedToFanRunningAndPowerLostAndBackOnThenFanStopped_YieldsTwoEntries()
+    {
+        // Arrange
+        var fan = GetAttachedPoweredFan();
+
+        // Act
+        SwitchPowerOff();
+        SwitchPowerOn();
+        fan.SwitchOff();
+
+        // Assert
+        Assert.Equal(2, _journal.Entries.Count);
+    }
+
+    [Fact]
+    public void Journal_WhenAttachedToFanRunningAndSelectedSameProgram_YieldsNoEntry()
+    {
+        // Arrange
+        var fan = GetAttachedPoweredFan();
+
+        // Act
+        fan.SelectProgram(_defaultProgram);
+
+        // Assert
+        Assert.Empty(_journal.Entries);
+    }
+    
+    [Theory]
+    [MemberData(nameof(GetFanNonDefaultPrograms))]
+    public void Journal_WhenAttachedToFanRunningAndSelectedNewProgram_YieldsSingleEntry(FanProgram program)
+    {
+        // Arrange
+        var fan = GetAttachedPoweredFan();
+
+        // Act
+        fan.SelectProgram(program);
+
+        // Assert
+        Assert.Single(_journal.Entries);
+    }
+
+    [Fact]
+    public void Journal_WhenAttachedToFanThenSwitchOnCalledTwiceThenSwitchedOff_YieldsSingleEntry()
+    {
+        // Arrange
+        var fan = GetAttachedPoweredFan();
+        var startedAt = _clock.GetUtcNow();
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        // Act
+        fan.SwitchOn();
+        fan.SwitchOff();
+
+        // Assert
+        var entry = Assert.IsType<JournalEntry.Fan>(Assert.Single(_journal.Entries));
+        Assert.Equal(startedAt, entry.StartedAt);
+    }
+
     private void RunWasherCycleWithOutcome(Washer washer, WasherProgram program, Type outcome)
     {
         washer.StartProgram(program);
@@ -367,6 +465,27 @@ public class JournalIntegrationTests
         _journal.Attach(dryer, _meter, new Room("Green"));
         dryer.SwitchOn();
         return dryer;
+    }
+
+    private Fan GetAttachedPoweredFan()
+    {
+        _powerSource.IsPowerOn.Returns(true);
+        var fan = new Fan(_fanId, _powerSource);
+        _journal.Attach(fan, _meter, new Room("Green"));
+        fan.SwitchOn();
+        return fan;
+    }
+
+    private void SwitchPowerOn()
+    {
+        _powerSource.IsPowerOn.Returns(true);
+        _powerSource.PowerOn += Raise.Event<Action>();
+    }
+
+    private void SwitchPowerOff()
+    {
+        _powerSource.IsPowerOn.Returns(false);
+        _powerSource.PowerOff += Raise.Event<Action>();
     }
 
     private static MeterReading Reading(decimal value) => MeterReading.From(Kwh.From(value));
@@ -412,6 +531,15 @@ public class JournalIntegrationTests
                 yield return new object[] { washerProgram, dryerProgram };
     }
 
+    public static IEnumerable<object[]> GetFanNonDefaultPrograms()
+    {
+        foreach (var program in Enum.GetValues<FanProgram>())
+        {
+            if (program == _defaultProgram) continue;
+            yield return new object[] { program };
+        }
+    }
+
     public static IEnumerable<object[]> GetWasherPrograms()
     {
         foreach (var program in Enum.GetValues<WasherProgram>())
@@ -421,6 +549,12 @@ public class JournalIntegrationTests
     public static IEnumerable<object[]> GetDryerPrograms()
     {
         foreach (var program in Enum.GetValues<DryerProgram>())
+            yield return new object[] { program };
+    }
+
+    public static IEnumerable<object[]> GetFanPrograms()
+    {
+        foreach (var program in Enum.GetValues<FanProgram>())
             yield return new object[] { program };
     }
 }
