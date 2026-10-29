@@ -9,6 +9,7 @@ public class RoomIntegrationTests
     private readonly FakeTimeProvider _clock = new(Start);
     private readonly Washer _washer;
     private readonly Dryer _dryer;
+    private readonly Fan _fan;
     private readonly Card _card;
     private readonly Card _anotherCard;
     private readonly Flat _owner;
@@ -31,8 +32,10 @@ public class RoomIntegrationTests
         _anotherCard.Assign(_anotherOwner);
         _washer = new Washer(Guid.NewGuid(), _room, _clock);
         _dryer = new Dryer(Guid.NewGuid(), _room, _clock);
+        _fan = new Fan(Guid.NewGuid(), _room);
         _journal.Attach(_washer, _meter, _room);
         _journal.Attach(_dryer, _meter, _room);
+        _journal.Attach(_fan, _meter, _room);
     }
 
     [Theory]
@@ -165,6 +168,47 @@ public class RoomIntegrationTests
         var dryerEntry2 = Assert.IsType<JournalEntry.Dryer>(_journal.Entries[1]);
         Assert.Equal(_owner, dryerEntry1.CardOwner);
         Assert.Equal(_anotherOwner, dryerEntry2.CardOwner);
+    }
+
+    [Fact]
+    public void Room_WhenFanRunningAndCardEjected_YieldsEntryWithCardOwner()
+    {
+        // Arrange
+        _room.InsertCard(_card);
+        _fan.SwitchOn();
+        _clock.Advance(TimeSpan.FromHours(5));
+
+        // Act
+        _room.EjectCard();
+
+        // Assert
+        var entry = _journal.Entries.OfType<JournalEntry.Fan>().Single();
+        Assert.Equal(_card.Owner, entry.CardOwner);
+    }
+
+    [Fact]
+    public void Room_WhenTwoOwnersUsedFan_YieldsTwoEntries()
+    {
+        // Arrange
+        // Act
+        _room.InsertCard(_card);
+        _fan.SwitchOn();
+
+        _clock.Advance(TimeSpan.FromHours(5));
+        _room.EjectCard();
+        _clock.Advance(TimeSpan.FromHours(2));
+
+        _room.InsertCard(_anotherCard);
+        _fan.SwitchOn();
+        _clock.Advance(TimeSpan.FromHours(2));
+        _fan.SwitchOff();
+
+        // Assert
+        Assert.Equal(2, _journal.Entries.Count);
+        var entry1 = Assert.IsType<JournalEntry.Fan>(_journal.Entries[0]);
+        var entry2 = Assert.IsType<JournalEntry.Fan>(_journal.Entries[1]);
+        Assert.Equal(_owner, entry1.CardOwner);
+        Assert.Equal(_anotherOwner, entry2.CardOwner);
     }
 
     private static MeterReading Reading(decimal value) => MeterReading.From(Kwh.From(value));

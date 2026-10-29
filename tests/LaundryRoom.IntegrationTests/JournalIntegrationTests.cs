@@ -344,13 +344,25 @@ public class JournalIntegrationTests
     public void Journal_WhenAttachedToFanRunningAndFanStopped_YieldsSingleEntry()
     {
         // Arrange
+        var kwhBefore = Kwh.From(1.1m);
+        var kwhAfter = Kwh.From(5.3m);
+        var expectedElectricityConsumed = kwhAfter - kwhBefore;
+        _meter.Read().Returns(MeterReading.From(kwhBefore), MeterReading.From(kwhAfter));
+
         var fan = GetAttachedPoweredFan();
+        var startedAt = _clock.GetUtcNow();
+        _clock.Advance(TimeSpan.FromMinutes(5));
 
         // Act
+        var endedAt = _clock.GetUtcNow();
         fan.SwitchOff();
 
         // Assert
         var entry = Assert.IsType<JournalEntry.Fan>(Assert.Single(_journal.Entries));
+        Assert.Equal(_fanId, entry.FanId);
+        Assert.Equal(startedAt, entry.StartedAt);
+        Assert.Equal(endedAt, entry.EndedAt);
+        Assert.Equal(expectedElectricityConsumed, entry.ElectricityConsumed);
     }
 
     [Fact]
@@ -370,15 +382,32 @@ public class JournalIntegrationTests
     public void Journal_WhenAttachedToFanRunningAndPowerLostAndBackOnThenFanStopped_YieldsTwoEntries()
     {
         // Arrange
+        var kwhBefore1 = Kwh.From(1.1m);
+        var kwhAfter1 = Kwh.From(5.3m);
+        var kwhBefore2 = Kwh.From(8.4m);
+        var kwhAfter2 = Kwh.From(11.2m);
+        var expectedElectricityConsumed1 = kwhAfter1 - kwhBefore1;
+        var expectedElectricityConsumed2 = kwhAfter2 - kwhBefore2;
+        _meter.Read().Returns(
+            MeterReading.From(kwhBefore1), MeterReading.From(kwhAfter1),
+            MeterReading.From(kwhBefore2), MeterReading.From(kwhAfter2));
+
         var fan = GetAttachedPoweredFan();
+        _clock.Advance(TimeSpan.FromMinutes(50));
 
         // Act
         SwitchPowerOff();
+        _clock.Advance(TimeSpan.FromMinutes(5));
         SwitchPowerOn();
+        _clock.Advance(TimeSpan.FromMinutes(50));
         fan.SwitchOff();
 
         // Assert
         Assert.Equal(2, _journal.Entries.Count);
+        var fanEntry1 = Assert.IsType<JournalEntry.Fan>(_journal.Entries[0]);
+        var fanEntry2 = Assert.IsType<JournalEntry.Fan>(_journal.Entries[1]);
+        Assert.Equal(expectedElectricityConsumed1, fanEntry1.ElectricityConsumed);
+        Assert.Equal(expectedElectricityConsumed2, fanEntry2.ElectricityConsumed);
     }
 
     [Fact]
