@@ -18,14 +18,15 @@ public class BillingTests
     }
 
     [Fact]
-    public void Billing_WhenFlatHasNoEntries_ReturnsZero()
+    public void Billing_WhenNoEntries_ReturnsEmptyBill()
     {
         // Arrange
         // Act
-        var total = Billing.Calculate(_flat, _entries, _tariff);
+        var bill = Billing.Calculate(_entries, _tariff);
 
         // Assert
-        Assert.Equal(0, total.Value);
+        Assert.Empty(bill.Lines);
+        Assert.Equal(Money.From(0), bill.Total);
     }
 
     [Fact]
@@ -35,55 +36,52 @@ public class BillingTests
         _entries.Add(WasherEntry(_flat, 1.1m, Start));
 
         // Act
-        var total = Billing.Calculate(_flat, _entries, _tariff);
+        var bill = Billing.Calculate(_entries, _tariff);
 
         // Assert
-        Assert.Equal(Money.From(30), total);
+        var line = Assert.Single(bill.Lines);
+        Assert.Equal(_flat, line.Flat);
+        Assert.Equal(Money.From(30), line.Amount);
+        Assert.Equal(Money.From(30), bill.Total);
     }
 
     [Fact]
     public void Billing_WhenFlatHasEntries_ReturnsTotalCost()
     {
         // Arrange
-        var washerKwh = 1.1m;
-        var dryerKwh = 1.5m;
-        var fanKwh = 2.7m;
-
-        _entries.Add(WasherEntry(_flat, washerKwh, Start));
-        _entries.Add(DryerEntry(_flat, dryerKwh, Start.Add(TimeSpan.FromMinutes(13))));
-        _entries.Add(FanEntry(_flat, fanKwh, Start.Add(TimeSpan.FromMinutes(26))));
-
-        var expectedTotal = _tariff.Cost(Kwh.From(washerKwh + dryerKwh + fanKwh));
+        _entries.Add(WasherEntry(_flat, 1.1m, Start));
+        _entries.Add(DryerEntry(_flat, 1.5m, Start.Add(TimeSpan.FromMinutes(13))));
+        _entries.Add(FanEntry(_flat, 2.7m, Start.Add(TimeSpan.FromMinutes(26))));
 
         // Act
-        var actualTotal = Billing.Calculate(_flat, _entries, _tariff);
+        var bill = Billing.Calculate(_entries, _tariff);
 
         // Assert
-        Assert.Equal(Money.From(143), actualTotal);
+        var line = Assert.Single(bill.Lines);
+        Assert.Equal(Money.From(143), line.Amount);
+        Assert.Equal(Money.From(143), bill.Total);
     }
 
     [Fact]
-    public void Billing_WhenFlatHasEntries_IgnoresOtherFlatsEntries()
+    public void Billing_WhenTwoFlatsHaveEntries_ReturnsLinePerFlat()
     {
         // Arrange
-        var washerKwh = 1.1m;
-        var dryerKwh = 1.5m;
-        var fanKwh = 2.7m;
-
-        var anotherWasherKwh = 1.7m;
-        var anotherFanKwh = 5.0m;
-
-        _entries.Add(WasherEntry(_anotherFlat, anotherWasherKwh, Start.Subtract(TimeSpan.FromHours(2))));
-        _entries.Add(WasherEntry(_flat, washerKwh, Start));
-        _entries.Add(DryerEntry(_flat, dryerKwh, Start.Add(TimeSpan.FromMinutes(13))));
-        _entries.Add(FanEntry(_flat, fanKwh, Start.Add(TimeSpan.FromMinutes(26))));
-        _entries.Add(FanEntry(_anotherFlat, anotherFanKwh, Start.Add(TimeSpan.FromHours(2))));
+        _entries.Add(WasherEntry(_anotherFlat, 1.7m, Start.Subtract(TimeSpan.FromHours(2))));
+        _entries.Add(WasherEntry(_flat, 1.1m, Start));
+        _entries.Add(DryerEntry(_flat, 1.5m, Start.Add(TimeSpan.FromMinutes(13))));
+        _entries.Add(FanEntry(_flat, 2.7m, Start.Add(TimeSpan.FromMinutes(26))));
+        _entries.Add(FanEntry(_anotherFlat, 5.0m, Start.Add(TimeSpan.FromHours(2))));
 
         // Act
-        var actualTotal = Billing.Calculate(_flat, _entries, _tariff);
+        var bill = Billing.Calculate(_entries, _tariff);
 
         // Assert
-        Assert.Equal(Money.From(143), actualTotal);
+        Assert.Equal(2, bill.Lines.Count);
+        var line = bill.Lines.Single(l => l.Flat == _flat);
+        var anotherLine = bill.Lines.Single(l => l.Flat == _anotherFlat);
+        Assert.Equal(Money.From(143), line.Amount);
+        Assert.Equal(Money.From(181), anotherLine.Amount);
+        Assert.Equal(Money.From(324), bill.Total);
     }
 
     private static JournalEntry WasherEntry(Flat flat, decimal kwh, DateTimeOffset startedAt)
