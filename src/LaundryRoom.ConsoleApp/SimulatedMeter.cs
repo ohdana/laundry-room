@@ -27,8 +27,8 @@ public class SimulatedMeter : IElectricityMeter
 
     private decimal CurrentKwh()
     {
-        if (_runningSince == null) return;
-        var elapsed = _clock.GetUtcNow();
+        if (_runningSince == null) return _accumulatedKwh;
+        var elapsed = _clock.GetUtcNow() - _runningSince.Value;
         var hours = (decimal)elapsed.Ticks / TimeSpan.TicksPerHour;
         return _accumulatedKwh + _ratedKw * hours;
     }
