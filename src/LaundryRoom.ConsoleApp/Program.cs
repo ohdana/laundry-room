@@ -33,3 +33,45 @@ var card3B = new Card(Guid.NewGuid());
 card3B.Assign(Flat.From("3B"));
 var card2A = new Card(Guid.NewGuid());
 card2A.Assign(Flat.From("2A"));
+
+var washTime = WasherProgram.Delicate.Duration();
+var dryTime = DryerProgram.Normal.Duration();
+
+var script = new List<DayStep>();
+var time = TimeSpan.Zero;
+
+script.Add(new DayStep(time, () => green.InsertCard(card3B)));
+time += TimeSpan.FromMinutes(1);
+script.Add(new DayStep(time, () => washer.SwitchOn()));
+time += TimeSpan.FromMinutes(1);
+script.Add(new DayStep(time, () => washer.StartProgram(WasherProgram.Delicate)));
+
+time += washTime + TimeSpan.FromMinutes(5);
+script.Add(new DayStep(time, () => dryer.SwitchOn()));
+script.Add(new DayStep(time, () => dryer.StartProgram(DryerProgram.Normal)));
+script.Add(new DayStep(time, () => fan.SwitchOn()));
+
+time += dryTime / 2;
+script.Add(new DayStep(time, () => green.EjectCard()));
+
+time += TimeSpan.FromHours(1);
+script.Add(new DayStep(time, () => green.InsertCard(card2A)));
+time += TimeSpan.FromMinutes(1);
+script.Add(new DayStep(time, () => washer.SwitchOn()));
+time += TimeSpan.FromMinutes(1);
+script.Add(new DayStep(time, () => washer.StartProgram(WasherProgram.Delicate)));
+
+time += TimeSpan.FromMinutes(5);
+script.Add(new DayStep(time, () => fan.SwitchOff()));
+time += TimeSpan.FromMinutes(1);
+script.Add(new DayStep(time, () => green.EjectCard()));
+
+var start = clock.GetUtcNow();
+
+foreach (var step in script)
+{
+    clock.Advance(start + step.At - clock.GetUtcNow());
+    step.Run();
+}
+
+Console.WriteLine(journal.Entries.Count);
