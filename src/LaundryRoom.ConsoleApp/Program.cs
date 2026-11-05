@@ -80,4 +80,11 @@ foreach (var step in script)
     step.Run();
 }
 
-Console.WriteLine(journal.Entries.Count);
+var bill = Billing.Calculate(journal.Entries, tariff);
+Console.WriteLine();
+Console.WriteLine("Bill");
+foreach (var line in bill.Lines)
+    Console.WriteLine($"  {line.Flat.Label, -4} {Chf(line.Amount)}");
+Console.WriteLine($"  Total  {Chf(bill.Total)}");
+
+static string Chf(Money money) => $"CHF {money.Value / 100}.{money.Value % 100:00}";
