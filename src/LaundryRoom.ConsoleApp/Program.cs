@@ -29,6 +29,12 @@ journal.Attach(washer, washerMeter, green);
 journal.Attach(dryer, dryerMeter, green);
 journal.Attach(fan, fanMeter, green);
 
+var narrator = new Narrator(clock);
+narrator.WatchRoom(green);
+narrator.WatchWasher(washer, green.Label);
+narrator.WatchDryer(dryer, green.Label);
+narrator.WatchFan(fan, green.Label);
+
 var card3B = new Card(Guid.NewGuid());
 card3B.Assign(Flat.From("3B"));
 var card2A = new Card(Guid.NewGuid());
